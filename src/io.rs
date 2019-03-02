@@ -108,14 +108,19 @@ mod tests {
     #[test]
     fn test_read_lines() {
         let strings = vec!["uci".to_string(), "go ponder".to_string()];
+        let expected_result = strings.clone();
         let reader = StringAsyncReader::new(strings);
         let stream = VampircIoStream(reader);
 
 
+        let mut parsed_strings: Vec<String> = vec![];
+
         stream.into_line_stream()
             .for_each(|line| {
-                println!("{}", line);
+                parsed_strings.push(line);
                 Ok(())
             }).poll().expect("Polling failed");
+
+        assert_eq!(parsed_strings, expected_result);
     }
 }
