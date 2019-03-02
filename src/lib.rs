@@ -1,6 +1,7 @@
 extern crate tokio;
 
 mod io;
+mod parse;
 
 #[cfg(test)]
 mod tests {

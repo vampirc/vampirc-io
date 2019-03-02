@@ -4,7 +4,7 @@ use tokio::codec::*;
 use tokio::io::*;
 use tokio::prelude::*;
 
-pub struct VampircIoStream<R>(R) where R: AsyncRead;
+pub struct VampircIoStream<R>(pub R) where R: AsyncRead;
 
 
 impl<R> Stream for VampircIoStream<R> where R: AsyncRead {
