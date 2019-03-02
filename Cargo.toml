@@ -1,0 +1,20 @@
+[package]
+name = "vampirc-io"
+version = "0.1.0"
+description = "A library for non-blocking, string-based communication between processes, especially intended for the UCI chess protocol."
+documentation = "https://docs.rs/vampirc_io"
+homepage = "https://vampirc.kejzar.si"
+repository = "https://github.com/vampirc/vampirc-io.git"
+categories = ["asynchronous", "game-engines"]
+license = "Apache-2.0"
+readme = "README.md"
+keywords = ["uci", "chess", "parser", "io"]
+authors = ["Matija Kejžar <matija@kejzar.si>"]
+edition = "2018"
+
+[badges]
+travis-ci = { repository = "vampirc/vampirc-io", branch = "master" }
+maintenance = { status = "actively-developed" }
+
+[dependencies]
+tokio = "0.1"
