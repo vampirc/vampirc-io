@@ -1,3 +1,5 @@
+use std::iter::Map;
+
 use tokio::codec::*;
 use tokio::io::*;
 use tokio::prelude::*;
@@ -5,7 +7,7 @@ use tokio::prelude::stream::Map as StreamMap;
 
 use crate::io::VampircIoStream;
 
-pub struct Parser<'a, R: AsyncRead, D: Decoder, M> {
+pub struct Parser<'a, R: AsyncRead, D: Decoder, M: Sized> {
     stream: VampircIoStream<R>,
     decoder: D,
     mapper: &'a Fn(D::Item) -> M,
@@ -20,11 +22,19 @@ impl<'a, R: AsyncRead, D: Decoder, M> Parser<'a, R, D, M> {
         }
     }
 
-//    pub fn parse_msg(self)  {
-//        return self.stream.into_frame_stream(self.decoder)
-//            .map( |v| self.mapper.call(v))
-//
-//    }
+    pub fn poll_msg<F>(self, consumer: F) where F: Fn(M) -> () {
+        let f = self.mapper;
+
+        let stream = self.stream.into_frame_stream(self.decoder)
+            .map(|item| f(item))
+            .and_then(|m: M| {
+                consumer(m);
+                Ok(())
+            })
+
+
+            ;
+    }
 }
 
 impl<'a, M> Parser<'a, Stdin, LinesCodec, M> {
