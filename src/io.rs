@@ -48,12 +48,12 @@ impl VampircIoStream<Stdin> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use std::io::Read;
 
     use super::*;
 
-    struct StringAsyncReader {
+    pub struct StringAsyncReader {
         pub lines: Vec<String>,
         full_str: Vec<u8>,
         location: usize,
