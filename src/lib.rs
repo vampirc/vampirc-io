@@ -1,4 +1,6 @@
 extern crate tokio;
+#[cfg(feature = "vampirc-uci")]
+extern crate vampirc_uci;
 
 mod io;
 mod parse;
