@@ -9,17 +9,17 @@ use vampirc_uci::{parse, UciMessage};
 
 use crate::io::VampircIoStream;
 
-pub struct Parser<'a, R: AsyncRead, D: Decoder, M: Sized> {
+pub struct Parser<R: AsyncRead, D: Decoder, M: Sized> {
     stream: VampircIoStream<R>,
     decoder: D,
-    mapper: &'a (FnMut(D::Item) -> Vec<M> + 'a),
+    mapper: fn(D::Item) -> Vec<M>
 }
 
 #[cfg(feature = "vampirc-uci")]
-type UciParser<'a> = Parser<'a, Stdin, LinesCodec, UciMessage>;
+type UciParser<> = Parser<Stdin, LinesCodec, UciMessage>;
 
-impl<'a, R: AsyncRead, D: Decoder, M> Parser<'a, R, D, M> {
-    pub fn new(async_reader: R, decoder: D, mapper: &'a FnMut(D::Item) -> Vec<M>) -> Parser<'a, R, D, M> {
+impl<R: AsyncRead, D: Decoder, M> Parser<R, D, M> {
+    pub fn new(async_reader: R, decoder: D, mapper: fn(D::Item) -> Vec<M>) -> Parser<R, D, M> {
         Parser {
             stream: VampircIoStream::<R>(async_reader),
             decoder,
@@ -28,7 +28,7 @@ impl<'a, R: AsyncRead, D: Decoder, M> Parser<'a, R, D, M> {
     }
 
     pub fn poll_msg<F>(self, mut consumer: F) where F: FnMut(M) -> () {
-        let f: &'a mut (FnMut(D::Item) -> Vec<M> + 'a) = self.mapper;
+        let f: fn(D::Item) -> Vec<M> = self.mapper;
 
         let stream1: FramedRead<R, D> = self.stream.into_frame_stream::<D>(self.decoder);
         let stream2 = stream1.map(|item: D::Item| {
@@ -64,16 +64,16 @@ impl<'a, R: AsyncRead, D: Decoder, M> Parser<'a, R, D, M> {
 }
 
 
-impl<'a, M> Parser<'a, Stdin, LinesCodec, M> {
-    pub fn from_stdin(mapper: &'a FnMut(String) -> Vec<M>) -> Parser<'a, Stdin, LinesCodec, M> {
+impl<M> Parser<Stdin, LinesCodec, M> {
+    pub fn from_stdin(mapper: fn(String) -> Vec<M>) -> Parser<Stdin, LinesCodec, M> {
         Parser::new(stdin(), LinesCodec::new(), mapper)
     }
 }
 
 #[cfg(feature = "vampirc-uci")]
-impl<'a> UciParser<'a> {
-    pub fn from_uci() -> UciParser<'a> {
-        Parser::from_stdin(&parse_uci)
+impl<> UciParser<> {
+    pub fn from_uci() -> UciParser<> {
+        Parser::from_stdin(parse_uci)
     }
 }
 
@@ -91,7 +91,7 @@ mod tests {
     use super::*;
 
     #[cfg(feature = "vampirc-uci")]
-    type TestUciParser<'a> = Parser<'a, StringAsyncReader, LinesCodec, UciMessage>;
+    type TestUciParser<> = Parser<StringAsyncReader, LinesCodec, UciMessage>;
 
     #[test]
     #[cfg(feature = "vampirc-uci")]
@@ -99,8 +99,7 @@ mod tests {
         let strings = vec!["uci".to_string(), "go ponder".to_string()];
         let reader = StringAsyncReader::new(strings);
 
-        let pu = &mut parse_uci;
-        let tup: TestUciParser = Parser::new(reader, LinesCodec::new(), pu);
+        let tup: TestUciParser = Parser::new(reader, LinesCodec::new(), parse_uci);
 
         let mut msg: Vec<UciMessage> = vec![];
 
