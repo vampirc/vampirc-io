@@ -6,6 +6,7 @@ extern crate vampirc_uci;
 
 mod io;
 mod parse;
+mod serialize;
 
 #[cfg(test)]
 mod tests {
