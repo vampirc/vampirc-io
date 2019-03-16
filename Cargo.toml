@@ -21,4 +21,5 @@ default = ["vampirc-uci"]
 
 [dependencies]
 tokio = "0.1"
+bytes = "0.4"
 vampirc-uci = { git = 'https://github.com/vampirc/vampirc-uci.git', optional=true}

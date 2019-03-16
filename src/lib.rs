@@ -1,3 +1,5 @@
+#[cfg(test)]
+extern crate bytes;
 extern crate tokio;
 #[cfg(feature = "vampirc-uci")]
 extern crate vampirc_uci;
