@@ -7,7 +7,7 @@ use vampirc_uci::UciMessage;
 pub struct Serializer<W: AsyncWrite, E: Encoder, M: Sized> {
     write: W,
     encoder: E,
-    mapper: fn(M) -> [u8],
+    mapper: fn([u8]) -> M,
 }
 
 pub type StringSerializer<R> = Serializer<R, LinesCodec, String>;
