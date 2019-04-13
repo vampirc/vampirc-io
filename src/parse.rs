@@ -10,7 +10,7 @@ use vampirc_uci::{parse, UciMessage};
 use crate::io::VampircIoStream;
 
 pub struct Parser<R: AsyncRead, D: Decoder, M: Sized> {
-    stream: VampircIoStream<R>,
+    read: R,
     decoder: D,
     mapper: fn(D::Item) -> Vec<M>
 }
@@ -22,9 +22,10 @@ pub type StdinStringParser<> = StringParser<Stdin>;
 pub type UciParser<> = Parser<Stdin, LinesCodec, UciMessage>;
 
 impl<R: AsyncRead, D: Decoder, M> Parser<R, D, M> {
+
     pub fn new(async_reader: R, decoder: D, mapper: fn(D::Item) -> Vec<M>) -> Parser<R, D, M> {
         Parser {
-            stream: VampircIoStream::<R>(async_reader),
+            read: async_reader,
             decoder,
             mapper,
         }
@@ -33,7 +34,7 @@ impl<R: AsyncRead, D: Decoder, M> Parser<R, D, M> {
     pub fn poll_msg<F>(self, mut consumer: F) where F: FnMut(M) -> () {
         let f: fn(D::Item) -> Vec<M> = self.mapper;
 
-        let stream1: FramedRead<R, D> = self.stream.into_frame_stream::<D>(self.decoder);
+        let stream1: FramedRead<R, D> = FramedRead::new(self.read, self.decoder);
         let stream2 = stream1.map(|item: D::Item| {
             let v: Vec<M> = f(item);
             let fm: IterOk<IntoIter<M>, D::Error> = stream::iter_ok(v.into_iter());
