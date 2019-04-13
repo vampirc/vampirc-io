@@ -15,11 +15,11 @@ pub struct Parser<R: AsyncRead, D: Decoder, M: Sized> {
     mapper: fn(D::Item) -> Vec<M>
 }
 
-type StringParser<R> = Parser<R, LinesCodec, String>;
-type StdinStringParser<> = StringParser<Stdin>;
+pub type StringParser<R> = Parser<R, LinesCodec, String>;
+pub type StdinStringParser<> = StringParser<Stdin>;
 
 #[cfg(feature = "vampirc-uci")]
-type UciParser<> = Parser<Stdin, LinesCodec, UciMessage>;
+pub type UciParser<> = Parser<Stdin, LinesCodec, UciMessage>;
 
 impl<R: AsyncRead, D: Decoder, M> Parser<R, D, M> {
     pub fn new(async_reader: R, decoder: D, mapper: fn(D::Item) -> Vec<M>) -> Parser<R, D, M> {
