@@ -1,12 +1,12 @@
 #[cfg(test)]
 extern crate bytes;
 extern crate tokio;
-#[cfg(feature = "vampirc-uci")]
+extern crate tokio_codec;
 extern crate vampirc_uci;
 
+mod codec;
 mod io;
-mod parse;
-mod serialize;
+
 
 #[cfg(test)]
 mod tests {

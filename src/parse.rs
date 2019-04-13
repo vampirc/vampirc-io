@@ -1,5 +1,4 @@
 use std::vec::IntoIter;
-
 use tokio::codec::*;
 use tokio::io::*;
 use tokio::prelude::*;
@@ -7,7 +6,7 @@ use tokio::prelude::stream::*;
 #[cfg(feature = "vampirc-uci")]
 use vampirc_uci::{parse, UciMessage};
 
-use crate::io::VampircIoStream;
+use crate::stream::VampircIoStream;
 
 pub struct Parser<R: AsyncRead, D: Decoder, M: Sized> {
     read: R,
@@ -109,7 +108,7 @@ mod tests {
     use bytes::BytesMut;
     use vampirc_uci::uci::{Serializable, UciTimeControl};
 
-    use crate::io::tests::StringAsyncReader;
+    use crate::stream::tests::StringAsyncReader;
 
     use super::*;
 
