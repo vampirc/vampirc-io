@@ -1,126 +1,66 @@
-use std::io::Error;
+use std::io;
+use std::io::Write;
 
-use tokio::codec::*;
-use tokio::io::*;
-use tokio::prelude::*;
+use tokio::io::{Stdin, stdin, Stdout, stdout};
+use tokio::prelude::{Async, AsyncRead, AsyncWrite, Read};
+use tokio_codec::{Decoder, Framed};
 
-pub struct VampircIoStream<R>(pub R) where R: AsyncRead;
+use crate::codec::UciCodec;
 
+pub type UciStream<S> = Framed<S, UciCodec>;
+pub type UciEngineStream = UciStream<StdinStdout>;
 
-impl<R> Stream for VampircIoStream<R> where R: AsyncRead {
-    type Item = [u8; 64];
-    type Error = Error;
+#[derive(Debug)]
+pub struct StdinStdout {
+    stdin: Stdin,
+    stdout: Stdout,
+}
 
-    fn poll(&mut self) -> Result<Async<Option<[u8; 64]>>> {
-        let mut buf: [u8; 64] = [0; 64];
+pub fn stdin_stdout() -> StdinStdout {
+    StdinStdout::new()
+}
 
-        match self.0.poll_read(&mut buf) {
-            Ok(Async::Ready(n)) => {
-                // By convention, if an AsyncRead says that it read 0 bytes,
-                // we should assume that it has got to the end, so we signal that
-                // the Stream is done in this case by returning None:
-                if n == 0 {
-                    Ok(Async::Ready(None))
-                } else {
-                    Ok(Async::Ready(Some(buf)))
-                }
-            }
-            Ok(Async::NotReady) => Ok(Async::NotReady),
-            Err(e) => Err(e)
+impl StdinStdout {
+    fn new() -> StdinStdout {
+        StdinStdout {
+            stdin: stdin(),
+            stdout: stdout(),
         }
     }
 }
 
-impl<R> VampircIoStream<R> where R: AsyncRead {
-    pub fn into_frame_stream<D>(self, decoder: D) -> FramedRead<R, D> where D: Decoder {
-        FramedRead::new(self.0, decoder)
-    }
-
-    pub fn into_line_stream(self) -> FramedRead<R, LinesCodec> {
-        self.into_frame_stream(LinesCodec::new())
+impl io::Read for StdinStdout {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, io::Error> {
+        self.stdin.read(buf)
     }
 }
 
-impl VampircIoStream<Stdin> {
-    pub fn stdin() -> VampircIoStream<Stdin> {
-        VampircIoStream(stdin())
+impl AsyncRead for StdinStdout {
+    unsafe fn prepare_uninitialized_buffer(&self, b: &mut [u8]) -> bool {
+        self.stdin.prepare_uninitialized_buffer(b)
     }
 }
 
-#[cfg(test)]
-pub mod tests {
-    use std::io::Read;
-
-    use super::*;
-
-    pub struct StringAsyncReader {
-        pub lines: Vec<String>,
-        full_str: Vec<u8>,
-        location: usize,
+impl io::Write for StdinStdout {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, io::Error> {
+        self.stdout.write(buf)
     }
 
-    impl StringAsyncReader {
-        pub fn new(lines: Vec<String>) -> StringAsyncReader {
-            let mut bv: Vec<u8> = Vec::new();
-
-            for l in lines.iter() {
-                let ln = l.clone() + "\n";
-
-                for b in ln.as_bytes().iter() {
-                    bv.push(*b);
-                }
-            }
-
-            StringAsyncReader {
-                lines,
-                full_str: bv,
-                location: 0,
-            }
-        }
+    fn flush(&mut self) -> Result<(), io::Error> {
+        self.stdout.flush()
     }
+}
 
-    impl Read for StringAsyncReader {
-        fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
-            let bl = buf.len();
-            let remaining = self.full_str.len() - self.location;
-
-            let to_read = bl.min(remaining);
-
-            if to_read == 0 {
-                return Ok(0);
-            }
-
-            let bytes = &self.full_str[self.location..to_read];
-
-            for (i, b) in bytes.into_iter().enumerate() {
-                buf[i] = *b;
-            }
-
-            self.location += to_read;
-
-            Ok(to_read)
-        }
+impl AsyncWrite for StdinStdout {
+    fn shutdown(&mut self) -> Result<Async<()>, io::Error> {
+        self.stdout.shutdown()
     }
+}
 
-    impl AsyncRead for StringAsyncReader {}
+pub fn new_uci_stream<S: AsyncRead + AsyncWrite>(stream: S) -> UciStream<S> {
+    UciCodec::new().framed(stream)
+}
 
-
-    #[test]
-    fn test_read_lines() {
-        let strings = vec!["uci".to_string(), "go ponder".to_string()];
-        let expected_result = strings.clone();
-        let reader = StringAsyncReader::new(strings);
-        let stream = VampircIoStream(reader);
-
-
-        let mut parsed_strings: Vec<String> = vec![];
-
-        stream.into_line_stream()
-            .for_each(|line| {
-                parsed_strings.push(line);
-                Ok(())
-            }).poll().expect("Polling failed");
-
-        assert_eq!(parsed_strings, expected_result);
-    }
+pub fn new_uci_engine_stream() -> UciEngineStream {
+    new_uci_stream(stdin_stdout())
 }
