@@ -1,10 +1,11 @@
 use std::io;
 
-use bytes::{BufMut, BytesMut};
+use bytes::BytesMut;
 use tokio::io::ErrorKind;
 use tokio_codec::{Decoder, Encoder, LinesCodec};
 use vampirc_uci::{MessageList, parse, Serializable, UciMessage};
 
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct UciCodec {
     delegate: LinesCodec
 }
