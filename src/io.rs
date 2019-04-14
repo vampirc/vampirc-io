@@ -1,5 +1,4 @@
 use std::io;
-use std::io::Write;
 
 use tokio::io::{Stdin, stdin, Stdout, stdout};
 use tokio::prelude::{Async, AsyncRead, AsyncWrite, Read};
