@@ -11,9 +11,10 @@ pub type UciEngineStream = UciStream<StdinStdout>;
 
 #[derive(Debug)]
 pub struct StdinStdout {
-    stdin: Stdin,
-    stdout: Stdout,
+    pub stdin: Stdin,
+    pub stdout: Stdout,
 }
+
 
 pub fn stdin_stdout() -> StdinStdout {
     StdinStdout::new()
@@ -63,3 +64,4 @@ pub fn new_uci_stream<S: AsyncRead + AsyncWrite>(stream: S) -> UciStream<S> {
 pub fn new_uci_engine_stream() -> UciEngineStream {
     new_uci_stream(stdin_stdout())
 }
+
