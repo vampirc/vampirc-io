@@ -1,7 +1,7 @@
 use std::io;
 
-use tokio::io::{Stdin, stdin, Stdout, stdout};
-use tokio::prelude::{Async, AsyncRead, AsyncWrite, Read};
+use tokio::io::{shutdown, Stdin, stdin, Stdout, stdout};
+use tokio::prelude::{Async, AsyncRead, AsyncWrite, Future, Read, Stream};
 use tokio_codec::{Decoder, Framed};
 
 use crate::codec::UciCodec;
@@ -63,5 +63,54 @@ pub fn new_uci_stream<S: AsyncRead + AsyncWrite>(stream: S) -> UciStream<S> {
 
 pub fn new_uci_engine_stream() -> UciEngineStream {
     new_uci_stream(stdin_stdout())
+}
+
+#[cfg(test)]
+mod tests {
+    use tokio::codec::LinesCodec;
+    use tokio_codec::FramedRead;
+
+    use super::*;
+
+//    #[test]
+//    fn test_message_read_output() {
+//
+//
+//
+//        let mut ios = new_uci_engine_stream();
+//        ios.
+//
+//        let f = ios.for_each(|l| {
+//            println!("Message: {}", l);
+//            Ok(())
+//        });
+//
+//        let p = f.and_then(|a| {
+//            shutdown()
+//                .map(drop)
+//                .map_err(drop)
+//        });
+//
+//        tokio::run(p);
+//
+//    }
+
+    #[test]
+    fn test_interactive_stdin_read_async() {
+        print!("Input >>> ");
+
+        let frs = FramedRead::new(stdin(), LinesCodec::new());
+        let proc = frs.for_each(|m| {
+            println!("Message: {}", m);
+            Ok(())
+        })
+            .map_err(|e| {
+                println!("ERROR: {}", e);
+            })
+
+            ;
+
+        tokio::run(proc);
+    }
 }
 
