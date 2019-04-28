@@ -1,3 +1,5 @@
+use std::io;
+
 use tokio::codec::{FramedRead, LinesCodec};
 use tokio::io::stdin;
 use tokio::prelude::{Future, Stream};
@@ -40,9 +42,13 @@ fn test_interactive_stdin_read_async() {
 #[test]
 #[ignore]
 fn test_pass_func() {
-    run_engine(callback1);
+    run_engine(callback1, err_callback);
 }
 
 fn callback1(m: &UciMessage) {
     println!("M: {}", *m);
+}
+
+fn err_callback(e: &io::Error) {
+    println!("Error handling: {}", e);
 }

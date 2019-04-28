@@ -1,5 +1,3 @@
-use std::env::Args;
-use std::error::Error;
 use std::io;
 
 use tokio::io::{shutdown, stdin, Stdin, stdout, Stdout};
@@ -67,25 +65,27 @@ pub fn new_uci_engine_stream() -> UciEngineStream {
     new_uci_stream(stdin_stdout())
 }
 
-pub fn run_engine<H>(mut msg_handler: H)
+pub fn run_engine<H, E>(mut msg_handler: H, mut err_handler: E)
     where
         H: FnMut(&UciMessage) + Send + 'static,
+        E: FnMut(&io::Error) + Send + 'static
 {
-    run(new_uci_engine_stream(), msg_handler);
+    run(new_uci_engine_stream(), msg_handler, err_handler);
 }
 
-pub fn run<S, H>(stream: UciStream<S>, mut msg_handler: H)
+pub fn run<S, H, E>(stream: UciStream<S>, mut msg_handler: H, mut err_handler: E)
     where
         S: AsyncRead + AsyncWrite + Sized + Send + 'static,
         H: FnMut(&UciMessage) + Send + 'static,
+        E: FnMut(&io::Error) + Send + 'static
 {
     let proc = stream
         .for_each(move |m: UciMessage| {
             msg_handler(&m);
             Ok(())
         })
-        .map_err(|e| {
-            println!("E: {} ", e);
+        .map_err(move |e| {
+            err_handler(&e);
         });
 
     tokio::run(proc);
