@@ -3,7 +3,7 @@ use std::io;
 use bytes::BytesMut;
 use tokio::io::ErrorKind;
 use tokio_codec::{Decoder, Encoder, LinesCodec};
-use vampirc_uci::{MessageList, parse, parse_strict, Serializable, UciMessage};
+use vampirc_uci::{MessageList, parse_with_unknown, Serializable, UciMessage};
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct UciCodec {
@@ -34,7 +34,7 @@ impl Decoder for UciCodec {
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
         let decode_result = self.delegate.decode(src)?;
         if let Some(dr) = decode_result {
-            let ml: MessageList = parse(format!("{}\n", dr).as_str());
+            let ml: MessageList = parse_with_unknown(format!("{}\n", dr).as_str());
 
             if ml.len() > 1 {
                 let err = io::Error::new(
