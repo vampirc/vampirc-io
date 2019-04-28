@@ -2,7 +2,7 @@ use std::env::Args;
 use std::error::Error;
 use std::io;
 
-use tokio::io::{shutdown, Stdin, stdin, Stdout, stdout};
+use tokio::io::{shutdown, stdin, Stdin, stdout, Stdout};
 use tokio::prelude::{Async, AsyncRead, AsyncWrite, Future, Read, Stream};
 use tokio_codec::{Decoder, Framed};
 use vampirc_uci::{MessageList, UciMessage};
@@ -17,7 +17,6 @@ pub struct StdinStdout {
     pub stdin: Stdin,
     pub stdout: Stdout,
 }
-
 
 pub fn stdin_stdout() -> StdinStdout {
     StdinStdout::new()
@@ -68,19 +67,26 @@ pub fn new_uci_engine_stream() -> UciEngineStream {
     new_uci_stream(stdin_stdout())
 }
 
-pub fn run_engine<H>(mut msg_handler: H) where H: FnMut(&UciMessage) + Send + 'static {
+pub fn run_engine<H>(mut msg_handler: H)
+    where
+        H: FnMut(&UciMessage) + Send + 'static,
+{
     run(new_uci_engine_stream(), msg_handler);
 }
 
-pub fn run<S, H>(stream: UciStream<S>, mut msg_handler: H) where S: AsyncRead + AsyncWrite + Sized + Send + 'static, H: FnMut(&UciMessage) + Send + 'static {
-    let proc = stream.for_each(move |m: UciMessage| {
-        msg_handler(&m);
-        Ok(())
-    })
+pub fn run<S, H>(stream: UciStream<S>, mut msg_handler: H)
+    where
+        S: AsyncRead + AsyncWrite + Sized + Send + 'static,
+        H: FnMut(&UciMessage) + Send + 'static,
+{
+    let proc = stream
+        .for_each(move |m: UciMessage| {
+            msg_handler(&m);
+            Ok(())
+        })
         .map_err(|e| {
             println!("E: {} ", e);
-        })
-        ;
+        });
 
     tokio::run(proc);
 }
@@ -89,4 +95,3 @@ pub fn run<S, H>(stream: UciStream<S>, mut msg_handler: H) where S: AsyncRead + 
 mod tests {
     use super::*;
 }
-

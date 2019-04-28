@@ -7,13 +7,13 @@ use vampirc_uci::{MessageList, parse, parse_strict, Serializable, UciMessage};
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct UciCodec {
-    delegate: LinesCodec
+    delegate: LinesCodec,
 }
 
 impl UciCodec {
     pub fn new() -> UciCodec {
         UciCodec {
-            delegate: LinesCodec::new()
+            delegate: LinesCodec::new(),
         }
     }
 }
@@ -37,7 +37,10 @@ impl Decoder for UciCodec {
             let ml: MessageList = parse(format!("{}\n", dr).as_str());
 
             if ml.len() > 1 {
-                let err = io::Error::new(ErrorKind::InvalidData, "Too many messages unexpectedly returned by the underlying LinesCodec");
+                let err = io::Error::new(
+                    ErrorKind::InvalidData,
+                    "Too many messages unexpectedly returned by the underlying LinesCodec",
+                );
                 return Err(err);
             }
 
@@ -79,8 +82,8 @@ mod tests {
             UciInfoAttribute::Pv(vec![
                 UciMove::from_to(UciSquare::from('f', 1), UciSquare::from('c', 4)),
                 UciMove::from_to(UciSquare::from('g', 8), UciSquare::from('f', 6)),
-                UciMove::from_to(UciSquare::from('b', 1), UciSquare::from('c', 3))
-            ])
+                UciMove::from_to(UciSquare::from('b', 1), UciSquare::from('c', 3)),
+            ]),
         ]);
 
         let mut c = UciCodec::new();
@@ -89,7 +92,10 @@ mod tests {
         c.encode(m, &mut bm).unwrap();
 
         let s = String::from_utf8(bm.to_ascii_lowercase()).unwrap();
-        assert_eq!("info score cp 20 depth 3 nodes 423 time 15 pv f1c4 g8f6 b1c3\n", s.as_str());
+        assert_eq!(
+            "info score cp 20 depth 3 nodes 423 time 15 pv f1c4 g8f6 b1c3\n",
+            s.as_str()
+        );
     }
 
     #[test]
@@ -116,8 +122,8 @@ mod tests {
             UciInfoAttribute::Pv(vec![
                 UciMove::from_to(UciSquare::from('f', 1), UciSquare::from('c', 4)),
                 UciMove::from_to(UciSquare::from('g', 8), UciSquare::from('f', 6)),
-                UciMove::from_to(UciSquare::from('b', 1), UciSquare::from('c', 3))
-            ])
+                UciMove::from_to(UciSquare::from('b', 1), UciSquare::from('c', 3)),
+            ]),
         ]);
         let expected_m = m.clone();
 
