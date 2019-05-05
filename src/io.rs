@@ -65,23 +65,23 @@ pub fn new_uci_engine_stream() -> UciEngineStream {
     new_uci_stream(stdin_stdout())
 }
 
-pub fn run_engine<H, E>(stream: &'static mut UciEngineStream, mut msg_handler: H, mut err_handler: E)
+pub fn run_engine<H, E>(mut msg_handler: H, mut err_handler: E)
     where
-        H: FnMut(&UciMessage, &'static mut UciEngineStream) + Send + Sync + 'static,
-        E: FnMut(&io::Error) + Send + 'static
+            for<'a> H: FnMut(&'a UciMessage) + Send + Sync + 'static,
+            for<'a> E: FnMut(&'a io::Error) + Send + 'static
 {
-    run(stream, msg_handler, err_handler);
+    run(new_uci_engine_stream(), msg_handler, err_handler);
 }
 
-pub fn run<S, H, E>(stream: &'static mut UciStream<S>, mut msg_handler: H, mut err_handler: E)
+pub fn run<S, H, E>(stream: UciStream<S>, mut msg_handler: H, mut err_handler: E)
     where
         S: AsyncRead + AsyncWrite + Sized + Send + Sync + 'static,
-        H: FnMut(&UciMessage, &'static mut UciStream<S>) + Send + 'static,
-        E: FnMut(&io::Error) + Send + 'static
+        for<'a> H: FnMut(&'a UciMessage) + Send + 'static,
+        for<'a> E: FnMut(&'a io::Error) + Send + 'static
 {
     let proc = stream
         .for_each(move |m: UciMessage| {
-            msg_handler(&m, stream);
+            msg_handler(&m);
             Ok(())
         })
         .map_err(move |e| {
