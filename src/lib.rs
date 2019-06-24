@@ -6,6 +6,8 @@ extern crate vampirc_uci;
 
 pub use crate::io::run;
 pub use crate::io::run_engine;
+pub use crate::io::UciEngineStream;
+pub use crate::io::UciStream;
 
 mod codec;
 mod io;
