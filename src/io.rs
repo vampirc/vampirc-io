@@ -1,9 +1,12 @@
+use std::fmt::Error;
 use std::io;
 
-use tokio::io::{shutdown, stdin, Stdin, stdout, Stdout};
-use tokio::prelude::{Async, AsyncRead, AsyncWrite, Future, Read, Stream};
+use crossbeam::queue::ArrayQueue;
+use futures::lazy;
+use tokio::io::{shutdown, stdin, stdout, Stdin, Stdout};
+use tokio::prelude::{Async, AsyncRead, AsyncWrite, Future, Read, Sink, Stream};
 use tokio_codec::{Decoder, Framed};
-use vampirc_uci::{MessageList, UciMessage};
+use vampirc_uci::{CommunicationDirection, MessageList, UciMessage};
 
 use crate::codec::UciCodec;
 
@@ -66,18 +69,18 @@ pub fn new_uci_engine_stream() -> UciEngineStream {
 }
 
 pub fn run_engine<H, E>(mut msg_handler: H, mut err_handler: E)
-    where
-            for<'a> H: FnMut(&'a UciMessage) + Send + Sync + 'static,
-            for<'a> E: FnMut(&'a io::Error) + Send + 'static
+where
+    for<'a> H: FnMut(&'a UciMessage) + Send + Sync + 'static,
+    for<'a> E: FnMut(&'a io::Error) + Send + 'static,
 {
     run(new_uci_engine_stream(), msg_handler, err_handler);
 }
 
 pub fn run<S, H, E>(stream: UciStream<S>, mut msg_handler: H, mut err_handler: E)
-    where
-        S: AsyncRead + AsyncWrite + Sized + Send + Sync + 'static,
-        for<'a> H: FnMut(&'a UciMessage) + Send + 'static,
-        for<'a> E: FnMut(&'a io::Error) + Send + 'static
+where
+    S: AsyncRead + AsyncWrite + Sized + Send + Sync + 'static,
+    for<'a> H: FnMut(&'a UciMessage) + Send + 'static,
+    for<'a> E: FnMut(&'a io::Error) + Send + 'static,
 {
     let proc = stream
         .for_each(move |m: UciMessage| {
@@ -91,6 +94,76 @@ pub fn run<S, H, E>(stream: UciStream<S>, mut msg_handler: H, mut err_handler: E
     tokio::run(proc);
 }
 
+pub fn run_forever<S, H, E>(
+    frame: UciStream<S>,
+    msg_reader: H,
+    inbound: Box<Stream<Item = UciMessage, Error = io::Error> + Send + Sync>,
+    msg_handler: H,
+    err_handler: E,
+    outbound: Box<Stream<Item = UciMessage, Error = io::Error> + Send + Sync>,
+) where
+    S: AsyncRead + AsyncWrite + Send + Sync + 'static,
+    H: Fn(UciMessage) + Send + Sync + 'static,
+    E: Fn(&io::Error, CommunicationDirection) + Send + Sync + Copy + 'static,
+{
+    tokio::run(lazy(move || {
+        let (sink, stream) = frame.split();
+
+        let proc_read = stream
+            .for_each(move |m: UciMessage| {
+                (msg_reader)(m);
+                Ok(())
+            })
+            .map_err(move |e| {
+                (err_handler)(&e, CommunicationDirection::GuiToEngine);
+            });
+
+        let proc_handle = inbound
+            .for_each(move |m: UciMessage| {
+                (msg_handler)(m);
+                Ok(())
+            })
+            .map_err(move |e| {
+                (err_handler)(&e, CommunicationDirection::GuiToEngine);
+            });
+
+        let proc_write = lazy(move || {
+            sink.send_all(outbound);
+            Ok(())
+        })
+        .map_err(move |e| {
+            (err_handler)(&e, CommunicationDirection::EngineToGui);
+        });
+
+        tokio::spawn(proc_read);
+        tokio::spawn(proc_handle);
+        tokio::spawn(proc_write);
+        Ok(())
+    }));
+}
+
+pub fn run_f<S, H>(frame: UciStream<S>, msg_reader: H)
+where
+    S: AsyncRead + AsyncWrite + Send + Sync + 'static,
+    H: Fn(UciMessage) + Send + Sync + 'static,
+{
+}
+
+pub fn run_default() {
+    let frame = new_uci_engine_stream();
+    let inbound_q: ArrayQueue<UciMessage> = ArrayQueue::new(1000);
+    let outbound_q: ArrayQueue<UciMessage> = ArrayQueue::new(1000);
+
+    let msg_reader = move |m: UciMessage| {
+        inbound_q.push(m);
+    };
+
+    let msg_handler = move |m: UciMessage| {
+        let r = inbound_q.pop();
+    };
+
+    run_f(frame, msg_reader);
+}
 
 #[cfg(test)]
 mod tests {

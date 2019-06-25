@@ -75,38 +75,38 @@ where
     E: Fn(&io::Error, CommunicationDirection) + Send + Copy + 'static,
 {
     fn init_and_run(self, sh: StreamHolder<S, F, E>) {
-        let (sink, stream) = sh.frame.split();
-        let error_func = sh.error;
-        let handle_func = sh.receiver;
-        let in_q = self.inbound;
-
-        let proc_in = stream
-            .for_each(move |m: UciMessage| {
-                in_q.push(m);
-                Ok(())
-            })
-            .map_err(move |e| {
-                (error_func)(&e, CommunicationDirection::GuiToEngine);
-            });
-
-        let proc_handle = lazy(move || {
-            loop {
-                //                if let Ok(m) = in_q.pop() {
-                //                    (handle_func)(m);
-                //                }
-            }
-            Ok(())
-        })
-        .map_err(move |e| {
-            (error_func)(&e, CommunicationDirection::GuiToEngine);
-        });
-        ;
-
-        tokio::run(lazy(move || {
-            tokio::spawn(proc_in);
-            tokio::spawn(proc_handle);
-            Ok(())
-        }));
+        //        let (sink, stream) = sh.frame.split();
+        //        let error_func = sh.error;
+        //        let handle_func = sh.receiver;
+        //        let in_q = self.inbound;
+        //
+        //        let proc_in = stream
+        //            .for_each(move |m: UciMessage| {
+        //                in_q.push(m);
+        //                Ok(())
+        //            })
+        //            .map_err(move |e| {
+        //                (error_func)(&e, CommunicationDirection::GuiToEngine);
+        //            });
+        //
+        //        let proc_handle = lazy(move || {
+        //            loop {
+        //                //                if let Ok(m) = in_q.pop() {
+        //                //                    (handle_func)(m);
+        //                //                }
+        //            }
+        //            Ok(())
+        //        })
+        //        .map_err(move |e| {
+        //            (error_func)(&e, CommunicationDirection::GuiToEngine);
+        //        });
+        //        ;
+        //
+        //        tokio::run(lazy(move || {
+        //            tokio::spawn(proc_in);
+        //            tokio::spawn(proc_handle);
+        //            Ok(())
+        //        }));
     }
 
     fn send(&self, m: UciMessage) -> Result<(), io::Error> {
