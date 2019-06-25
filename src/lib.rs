@@ -1,5 +1,7 @@
 #[cfg(test)]
 extern crate bytes;
+extern crate crossbeam;
+extern crate futures;
 extern crate tokio;
 extern crate tokio_codec;
 extern crate vampirc_uci;
@@ -12,6 +14,7 @@ pub use crate::io::UciStream;
 
 mod codec;
 mod io;
+mod handler;
 
 #[cfg(test)]
 mod tests {
