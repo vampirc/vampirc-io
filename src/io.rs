@@ -1,9 +1,10 @@
 use std::fmt::Error;
 use std::io;
 
+use crossbeam::channel::unbounded;
 use crossbeam::queue::ArrayQueue;
 use futures::lazy;
-use tokio::io::{shutdown, stdin, stdout, Stdin, Stdout};
+use tokio::io::{shutdown, stdin, stdout, ErrorKind, Stdin, Stdout};
 use tokio::prelude::{Async, AsyncRead, AsyncWrite, Future, Read, Sink, Stream};
 use tokio_codec::{Decoder, Framed};
 use vampirc_uci::{CommunicationDirection, MessageList, UciMessage};
@@ -151,18 +152,34 @@ where
 
 pub fn run_default() {
     let frame = new_uci_engine_stream();
-    let inbound_q: ArrayQueue<UciMessage> = ArrayQueue::new(1000);
-    let outbound_q: ArrayQueue<UciMessage> = ArrayQueue::new(1000);
+    let (inb_s, inb_r) = unbounded();
+    let (out_s, out_r) = unbounded();
 
-    let msg_reader = move |m: UciMessage| {
-        inbound_q.push(m);
-    };
+    let (sink, stream) = frame.split();
 
-    let msg_handler = move |m: UciMessage| {
-        let r = inbound_q.pop();
-    };
+    let proc_read = stream
+        .for_each(move |m: UciMessage| {
+            let r = inb_s.try_send(m);
+            if r.is_err() {
+                return Err(io::Error::new(ErrorKind::WouldBlock, r.err().unwrap()));
+            }
+            Ok(())
+        })
+        .map_err(move |e| {
+            println!("{}", e);
+        });
 
-    run_f(frame, msg_reader);
+    let proc_handle = lazy(move || {
+        loop {
+            if let Ok(m) = inb_r.try_recv() {
+                println!("Received msg: {}", m);
+            }
+        }
+        Ok(())
+    })
+    .map_err(move |e: io::Error| {
+        println!("{}", e);
+    });
 }
 
 #[cfg(test)]
