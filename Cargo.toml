@@ -25,4 +25,5 @@ tokio-codec = "0.1"
 bytes = "0.4"
 crossbeam = "0.7"
 futures = "0.1"
+romio = "0.3.0-alpha.9"
 vampirc-uci = { git = 'https://github.com/vampirc/vampirc-uci.git'}
