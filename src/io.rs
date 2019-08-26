@@ -1,10 +1,12 @@
 use std::fmt::Error;
 use std::io;
+//use crossbeam::channel::{unbounded, Sender, Receiver};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::thread;
 
-use crossbeam::channel::unbounded;
 use crossbeam::queue::ArrayQueue;
 use futures::lazy;
-use tokio::io::{shutdown, stdin, stdout, ErrorKind, Stdin, Stdout};
+use tokio::io::{ErrorKind, shutdown, stdin, Stdin, stdout, Stdout};
 use tokio::prelude::{Async, AsyncRead, AsyncWrite, Future, Read, Sink, Stream};
 use tokio_codec::{Decoder, Framed};
 use vampirc_uci::{CommunicationDirection, MessageList, UciMessage};
@@ -13,6 +15,7 @@ use crate::codec::UciCodec;
 
 pub type UciStream<S: AsyncRead + AsyncWrite + Sized> = Framed<S, UciCodec>;
 pub type UciEngineStream = UciStream<StdinStdout>;
+pub type MessageChannel = (Sender<UciMessage>, Receiver<UciMessage>);
 
 #[derive(Debug)]
 pub struct StdinStdout {
@@ -95,90 +98,18 @@ where
     tokio::run(proc);
 }
 
-pub fn run_forever<S, H, E>(
-    frame: UciStream<S>,
-    msg_reader: H,
-    inbound: Box<Stream<Item = UciMessage, Error = io::Error> + Send + Sync>,
-    msg_handler: H,
-    err_handler: E,
-    outbound: Box<Stream<Item = UciMessage, Error = io::Error> + Send + Sync>,
-) where
-    S: AsyncRead + AsyncWrite + Send + Sync + 'static,
-    H: Fn(UciMessage) + Send + Sync + 'static,
-    E: Fn(&io::Error, CommunicationDirection) + Send + Sync + Copy + 'static,
-{
-    tokio::run(lazy(move || {
-        let (sink, stream) = frame.split();
-
-        let proc_read = stream
-            .for_each(move |m: UciMessage| {
-                (msg_reader)(m);
-                Ok(())
-            })
-            .map_err(move |e| {
-                (err_handler)(&e, CommunicationDirection::GuiToEngine);
-            });
-
-        let proc_handle = inbound
-            .for_each(move |m: UciMessage| {
-                (msg_handler)(m);
-                Ok(())
-            })
-            .map_err(move |e| {
-                (err_handler)(&e, CommunicationDirection::GuiToEngine);
-            });
-
-        let proc_write = lazy(move || {
-            sink.send_all(outbound);
-            Ok(())
-        })
-        .map_err(move |e| {
-            (err_handler)(&e, CommunicationDirection::EngineToGui);
-        });
-
-        tokio::spawn(proc_read);
-        tokio::spawn(proc_handle);
-        tokio::spawn(proc_write);
-        Ok(())
-    }));
-}
-
-pub fn run_f<S, H>(frame: UciStream<S>, msg_reader: H)
-where
-    S: AsyncRead + AsyncWrite + Send + Sync + 'static,
-    H: Fn(UciMessage) + Send + Sync + 'static,
-{
-}
-
-pub fn run_default() {
-    let frame = new_uci_engine_stream();
-    let (inb_s, inb_r) = unbounded();
-    let (out_s, out_r) = unbounded();
-
+pub fn run_c<S>(frame: UciStream<S>, msg_src: &'static MessageChannel)
+    where S: AsyncRead + AsyncWrite + Send + Sync + 'static {
+    let (_, src) = msg_src;
+    let src_clone = src.clone();
     let (sink, stream) = frame.split();
 
-    let proc_read = stream
-        .for_each(move |m: UciMessage| {
-            let r = inb_s.try_send(m);
-            if r.is_err() {
-                return Err(io::Error::new(ErrorKind::WouldBlock, r.err().unwrap()));
-            }
-            Ok(())
-        })
-        .map_err(move |e| {
-            println!("{}", e);
-        });
+    thread::spawn(move || {
 
-    let proc_handle = lazy(move || {
         loop {
-            if let Ok(m) = inb_r.try_recv() {
-                println!("Received msg: {}", m);
-            }
+            let m = src.recv().unwrap();
+            sink.send(m);
         }
-        Ok(())
-    })
-    .map_err(move |e: io::Error| {
-        println!("{}", e);
     });
 }
 
