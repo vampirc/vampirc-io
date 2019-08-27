@@ -1,4 +1,4 @@
-#[cfg(test)]
+extern crate futures;
 extern crate romio;
 extern crate vampirc_uci;
 

@@ -20,10 +20,7 @@ maintenance = { status = "actively-developed" }
 #default = ["vampirc-uci"]
 
 [dependencies]
-tokio = "0.1"
-tokio-codec = "0.1"
-bytes = "0.4"
-crossbeam = "0.7"
-futures = "0.1"
 romio = "0.3.0-alpha.9"
+futures-preview = "0.3.0-alpha.18"
+crossbeam = "0.7"
 vampirc-uci = { git = 'https://github.com/vampirc/vampirc-uci.git'}
