@@ -1,14 +1,12 @@
-#![feature(async_await)]
+#![feature(async_await, await_macro, futures_api)]
 
-use std::error::Error;
-use std::fs::read;
 use std::io;
-use std::io::BufRead;
 use std::pin::Pin;
 
 use crossbeam::queue::SegQueue;
-use futures::{AsyncBufRead, AsyncBufReadExt, AsyncWriteExt, executor, FutureExt, Poll, Sink, SinkExt, Stream, StreamExt};
-use futures::io::{AllowStdIo, AsyncReadExt, IntoSink, Lines};
+use futures::{AsyncBufReadExt, AsyncWriteExt, FutureExt, Poll, Sink, SinkExt, Stream, StreamExt};
+use futures::future::join;
+use futures::io::{AllowStdIo, IntoSink};
 use futures::task::Context;
 use vampirc_uci::{ByteVecUciMessage, parse_with_unknown, UciMessage};
 
@@ -23,6 +21,18 @@ pub async fn run_dispatcher(mut source: Pin<&mut dyn Stream<Item=UciMessage>>, m
         let bam = ByteVecUciMessage::from(msg);
         destination.send(bam).await;
     }
+}
+
+pub async fn dispatch_continuously(
+    mut inbound_source: Pin<&mut dyn Stream<Item=UciMessage>>,
+    mut inbound_destination: Pin<&mut dyn Sink<ByteVecUciMessage, Error=io::Error>>,
+    mut outbound_source: Pin<&mut dyn Stream<Item=UciMessage>>,
+    mut outbound_destination: Pin<&mut dyn Sink<ByteVecUciMessage, Error=io::Error>>,
+) {
+    let inbound_dispatch = run_dispatcher(inbound_source, inbound_destination);
+    let outbound_dispatch = run_dispatcher(outbound_source, outbound_destination);
+
+    join(inbound_dispatch, outbound_dispatch);
 }
 
 #[derive(Debug)]
@@ -55,12 +65,44 @@ impl Default for UciMessageQueue {
     }
 }
 
+unsafe impl Sync for UciMessageQueue {}
+
+unsafe impl Send for UciMessageQueue {}
+
+
 impl UciMessageQueue {
     pub fn new() -> UciMessageQueue {
         UciMessageQueue::default()
     }
 }
 
+impl Sink<ByteVecUciMessage> for UciMessageQueue {
+    type Error = io::Error;
+
+    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
+
+        // Our unbounded queue can't really fail to push, so we're always ready to do this
+        Poll::Ready(Result::Ok(()))
+    }
+
+    fn start_send(self: Pin<&mut Self>, item: ByteVecUciMessage) -> Result<(), Self::Error> {
+        println!("Inserting message into queue: {}", item);
+        self.0.push(item.into());
+        Result::Ok(())
+    }
+
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
+        // We don't really buffer
+        Poll::Ready(Result::Ok(()))
+    }
+
+    fn poll_close(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
+        // Nothing to do for close
+        Poll::Ready(Result::Ok(()))
+    }
+}
+
+#[derive(Debug)]
 pub struct DispatcherStdoutTarget(AllowStdIo<io::Stdout>);
 
 impl Unpin for DispatcherStdoutTarget {}
@@ -71,12 +113,17 @@ impl Default for DispatcherStdoutTarget {
     }
 }
 
+unsafe impl Sync for DispatcherStdoutTarget {}
+
+unsafe impl Send for DispatcherStdoutTarget {}
+
 impl DispatcherStdoutTarget {
     pub fn into_sink(self) -> IntoSink<AllowStdIo<io::Stdout>, ByteVecUciMessage> {
         self.0.into_sink()
     }
 }
 
+#[derive(Debug)]
 pub struct DispatcherStdinSource(AllowStdIo<io::BufReader<io::Stdin>>);
 
 impl Unpin for DispatcherStdinSource {}
@@ -86,6 +133,10 @@ impl Default for DispatcherStdinSource {
         DispatcherStdinSource(AllowStdIo::new(io::BufReader::new(io::stdin())))
     }
 }
+
+unsafe impl Sync for DispatcherStdinSource {}
+
+unsafe impl Send for DispatcherStdinSource {}
 
 impl DispatcherStdinSource {
     pub fn into_stream(self) {
@@ -124,6 +175,8 @@ impl Stream for DispatcherStdinSource {
 
 #[cfg(test)]
 mod tests {
+    use futures::executor;
+
     use super::*;
 
     #[test]
@@ -134,6 +187,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     pub fn test_run_dispatcher() {
         executor::block_on(async {
             let mut dqs = UciMessageQueue::default();
@@ -142,6 +196,18 @@ mod tests {
             let mut dst = DispatcherStdoutTarget::default().into_sink();
             let src = unsafe { Pin::new_unchecked(&mut dqs) };
             let tgt = unsafe { Pin::new_unchecked(&mut dst) };
+            run_dispatcher(src, tgt).await;
+        });
+    }
+
+    #[test]
+    #[ignore]
+    pub fn test_run_dispatcher_inbound() {
+        executor::block_on(async {
+            let mut dqt = UciMessageQueue::default();
+            let mut dss = DispatcherStdinSource::default();
+            let src = unsafe { Pin::new_unchecked(&mut dss) };
+            let tgt = unsafe { Pin::new_unchecked(&mut dqt) };
             run_dispatcher(src, tgt).await;
         });
     }
