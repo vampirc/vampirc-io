@@ -7,7 +7,7 @@ use std::io::BufRead;
 use std::pin::Pin;
 
 use crossbeam::queue::SegQueue;
-use futures::{AsyncBufRead, AsyncBufReadExt, AsyncWriteExt, executor, Poll, Sink, SinkExt, Stream, StreamExt};
+use futures::{AsyncBufRead, AsyncBufReadExt, AsyncWriteExt, executor, FutureExt, Poll, Sink, SinkExt, Stream, StreamExt};
 use futures::io::{AllowStdIo, AsyncReadExt, IntoSink, Lines};
 use futures::task::Context;
 use vampirc_uci::{ByteVecUciMessage, parse_with_unknown, UciMessage};
@@ -99,29 +99,26 @@ impl DispatcherStdinSource {
 impl Stream for DispatcherStdinSource {
     type Item = UciMessage;
 
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
-        let mut lines = AsyncBufReadExt::lines(self.0);
-        let pin = unsafe { Pin::new_unchecked(&mut lines) };
-        let poll = Lines::poll_next(pin, cx);
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<Self::Item>> {
+        let mut line = String::new();
+        let mut rl = AsyncBufReadExt::read_line(&mut self.0, &mut line);
+        let poll_result = rl.poll_unpin(cx);
 
-        if !poll.is_ready() {
-
-            // Probably don't need to call wake on cx because the Lines poll has already done it
+        if !poll_result.is_ready() {
             return Poll::Pending;
         }
 
-        match poll {
-            Poll::Ready(line) => {
-                if let Some(opt) = line {
-                    if let Ok(line_str) = opt {}
-                }
+        let msgs = parse_with_unknown(line.as_str());
 
-                cx.waker().wake_by_ref();
-                Poll::Pending
-            },
-
-            _ => unreachable!()
+        if msgs.len() < 1 {
+            cx.waker().wake_by_ref();
+            return Poll::Pending;
         }
+
+        // TODO should probably buffer the others if there is more than one
+        let msg = msgs[0].clone();
+
+        Poll::Ready(Option::Some(msg))
     }
 }
 
