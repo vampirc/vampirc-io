@@ -95,7 +95,7 @@ mod tests {
             dqs.0.push(UciMessage::UciOk);
             let mut dst = DispatcherStdioTarget::default().into_sink();
             let src = unsafe { Pin::new_unchecked(&mut dqs) };
-            let mut tgt = unsafe { Pin::new_unchecked(&mut dst) };
+            let tgt = unsafe { Pin::new_unchecked(&mut dst) };
             run_dispatcher(src, tgt).await;
         });
     }
