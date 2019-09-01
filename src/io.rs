@@ -32,7 +32,19 @@ pub async fn dispatch_continuously(
     let inbound_dispatch = run_dispatcher(inbound_source, inbound_destination);
     let outbound_dispatch = run_dispatcher(outbound_source, outbound_destination);
 
-    join(inbound_dispatch, outbound_dispatch);
+    join(inbound_dispatch, outbound_dispatch).await;
+}
+
+pub async fn dispatch_default(mut inbound_destination: UciMessageQueue, mut outbound_source: UciMessageQueue) {
+    let mut inbound_source = DispatcherStdinSource::default();
+    let mut outbound_destination = DispatcherStdoutTarget::default().into_sink();
+
+    let mut pin_inb_src = Pin::new(&mut inbound_source);
+    let mut pin_out_dest = Pin::new(&mut outbound_destination);
+    let mut pin_inb_dest = Pin::new(&mut inbound_destination);
+    let mut pin_out_src = Pin::new(&mut outbound_source);
+
+    dispatch_continuously(pin_inb_src, pin_inb_dest, pin_out_src, pin_out_dest).await;
 }
 
 #[derive(Debug)]
@@ -209,6 +221,18 @@ mod tests {
             let src = unsafe { Pin::new_unchecked(&mut dss) };
             let tgt = unsafe { Pin::new_unchecked(&mut dqt) };
             run_dispatcher(src, tgt).await;
+        });
+    }
+
+    #[test]
+//    #[ignore]
+    pub fn test_dispatch_default() {
+        executor::block_on(async {
+            let inq = UciMessageQueue::default();
+            let ouq = UciMessageQueue::default();
+            ouq.0.push(UciMessage::PonderHit);
+
+            dispatch_default(inq, ouq).await;
         });
     }
 }

@@ -1,6 +1,5 @@
 #![feature(async_await)]
 #[macro_use]
-#[feature(async_await, await_macro, futures_api)]
 extern crate futures;
 extern crate vampirc_uci;
 
