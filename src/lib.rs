@@ -1,4 +1,4 @@
-//#![feature(async_await)]
+#![feature(async_await)]
 extern crate futures;
 extern crate vampirc_uci;
 

@@ -2,8 +2,7 @@ use std::io;
 use std::pin::Pin;
 
 use crossbeam::queue::SegQueue;
-use futures::{AsyncBufReadExt, AsyncWriteExt, FutureExt, Poll, Sink, SinkExt, Stream, StreamExt};
-use futures::future::join;
+use futures::{AsyncBufReadExt, AsyncWriteExt, FutureExt, join, Poll, Sink, SinkExt, Stream, StreamExt};
 use futures::io::{AllowStdIo, IntoSink};
 use futures::task::Context;
 use vampirc_uci::{ByteVecUciMessage, parse_with_unknown, UciMessage};
@@ -15,7 +14,9 @@ async fn async_write() {
 
 
 pub async fn run_dispatcher(mut source: Pin<&mut dyn Stream<Item=UciMessage>>, mut destination: Pin<&mut dyn Sink<ByteVecUciMessage, Error=io::Error>>) {
+    println!("RUN DISPATCHER");
     while let Some(msg) = source.next().await {
+        println!("AWAITED SRC MSG: {}", msg);
         let bam = ByteVecUciMessage::from(msg);
         destination.send(bam).await;
     }
@@ -30,7 +31,7 @@ pub async fn dispatch_continuously(
     let inbound_dispatch = run_dispatcher(inbound_source, inbound_destination);
     let outbound_dispatch = run_dispatcher(outbound_source, outbound_destination);
 
-    join(outbound_dispatch, inbound_dispatch).await;
+    join!(outbound_dispatch, inbound_dispatch);
 }
 
 pub async fn dispatch_default(inbound_destination: &mut UciMessageQueue, outbound_source: &mut UciMessageQueue) {
@@ -55,6 +56,7 @@ impl Stream for UciMessageQueue {
     /// Retuns `Poll::Pending` if not ready, `Poll::Ready(Some(x))` if a value
     /// is ready, and never returns `Poll::Ready(None)` as the stream is never completed
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Option<UciMessage>> {
+        println!("POLL: {}", self.0.len());
         if self.0.is_empty() {
             cx.waker().wake_by_ref();
             return Poll::Pending;
@@ -205,7 +207,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
+//    #[ignore]
     pub fn test_run_dispatcher_inbound() {
         executor::block_on(async {
             let mut dqt = UciMessageQueue::default();
@@ -221,16 +223,16 @@ mod tests {
     pub fn test_dispatch_default() {
         executor::block_on(async {
             let mut inq = UciMessageQueue::default();
-            let mut ouq = Arc::new(UciMessageQueue::default());
+            let mut ouq = UciMessageQueue::default();
             ouq.0.push(UciMessage::PonderHit);
             ouq.0.push(UciMessage::UciNewGame);
-            let ooq = Arc::clone(&ouq);
+            //let ooq = Arc::clone(&ouq);
 
-            spawn(move || {
-                ooq.0.push(UciMessage::IsReady);
-            });
+//            spawn(move || {
+//                ooq.0.push(UciMessage::IsReady);
+//            });
 
-            //dispatch_default(&mut inq, &mut ouq).await;
+            dispatch_default(&mut inq, &mut ouq).await;
 
 
         });
