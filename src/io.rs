@@ -1,5 +1,3 @@
-#![feature(async_await, await_macro, futures_api)]
-
 use std::io;
 use std::pin::Pin;
 
@@ -24,25 +22,25 @@ pub async fn run_dispatcher(mut source: Pin<&mut dyn Stream<Item=UciMessage>>, m
 }
 
 pub async fn dispatch_continuously(
-    mut inbound_source: Pin<&mut dyn Stream<Item=UciMessage>>,
-    mut inbound_destination: Pin<&mut dyn Sink<ByteVecUciMessage, Error=io::Error>>,
-    mut outbound_source: Pin<&mut dyn Stream<Item=UciMessage>>,
-    mut outbound_destination: Pin<&mut dyn Sink<ByteVecUciMessage, Error=io::Error>>,
+    inbound_source: Pin<&mut dyn Stream<Item=UciMessage>>,
+    inbound_destination: Pin<&mut dyn Sink<ByteVecUciMessage, Error=io::Error>>,
+    outbound_source: Pin<&mut dyn Stream<Item=UciMessage>>,
+    outbound_destination: Pin<&mut dyn Sink<ByteVecUciMessage, Error=io::Error>>,
 ) {
     let inbound_dispatch = run_dispatcher(inbound_source, inbound_destination);
     let outbound_dispatch = run_dispatcher(outbound_source, outbound_destination);
 
-    join(inbound_dispatch, outbound_dispatch).await;
+    join(outbound_dispatch, inbound_dispatch).await;
 }
 
-pub async fn dispatch_default(mut inbound_destination: UciMessageQueue, mut outbound_source: UciMessageQueue) {
+pub async fn dispatch_default(inbound_destination: &mut UciMessageQueue, outbound_source: &mut UciMessageQueue) {
     let mut inbound_source = DispatcherStdinSource::default();
     let mut outbound_destination = DispatcherStdoutTarget::default().into_sink();
 
-    let mut pin_inb_src = Pin::new(&mut inbound_source);
-    let mut pin_out_dest = Pin::new(&mut outbound_destination);
-    let mut pin_inb_dest = Pin::new(&mut inbound_destination);
-    let mut pin_out_src = Pin::new(&mut outbound_source);
+    let pin_inb_src = Pin::new(&mut inbound_source);
+    let pin_out_dest = Pin::new(&mut outbound_destination);
+    let pin_inb_dest = Pin::new(inbound_destination);
+    let pin_out_src = Pin::new(outbound_source);
 
     dispatch_continuously(pin_inb_src, pin_inb_dest, pin_out_src, pin_out_dest).await;
 }
@@ -91,7 +89,7 @@ impl UciMessageQueue {
 impl Sink<ByteVecUciMessage> for UciMessageQueue {
     type Error = io::Error;
 
-    fn poll_ready(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
+    fn poll_ready(self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Result<(), Self::Error>> {
 
         // Our unbounded queue can't really fail to push, so we're always ready to do this
         Poll::Ready(Result::Ok(()))
@@ -103,12 +101,12 @@ impl Sink<ByteVecUciMessage> for UciMessageQueue {
         Result::Ok(())
     }
 
-    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Result<(), Self::Error>> {
         // We don't really buffer
         Poll::Ready(Result::Ok(()))
     }
 
-    fn poll_close(self: Pin<&mut Self>, cx: &mut Context) -> Poll<Result<(), Self::Error>> {
+    fn poll_close(self: Pin<&mut Self>, _cx: &mut Context) -> Poll<Result<(), Self::Error>> {
         // Nothing to do for close
         Poll::Ready(Result::Ok(()))
     }
@@ -149,15 +147,6 @@ impl Default for DispatcherStdinSource {
 unsafe impl Sync for DispatcherStdinSource {}
 
 unsafe impl Send for DispatcherStdinSource {}
-
-impl DispatcherStdinSource {
-    pub fn into_stream(self) {
-        let s = AsyncBufReadExt::lines(self.0)
-            .map(|l| { l.unwrap() })
-            .map(|l| { parse_with_unknown(l.as_str()) })
-            ;
-    }
-}
 
 impl Stream for DispatcherStdinSource {
     type Item = UciMessage;
@@ -228,11 +217,19 @@ mod tests {
 //    #[ignore]
     pub fn test_dispatch_default() {
         executor::block_on(async {
-            let inq = UciMessageQueue::default();
-            let ouq = UciMessageQueue::default();
+            let mut inq = UciMessageQueue::default();
+            let mut ouq = UciMessageQueue::default();
             ouq.0.push(UciMessage::PonderHit);
+            ouq.0.push(UciMessage::UciNewGame);
+            let ooq = &ouq;
 
-            dispatch_default(inq, ouq).await;
+//            thread::spawn( move || {
+//                ooq.0.push(UciMessage::IsReady);
+//            });
+
+            dispatch_default(&mut inq, &mut ouq).await;
+
+
         });
     }
 }
