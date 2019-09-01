@@ -176,6 +176,9 @@ impl Stream for DispatcherStdinSource {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+    use std::thread::spawn;
+
     use futures::executor;
 
     use super::*;
@@ -218,16 +221,16 @@ mod tests {
     pub fn test_dispatch_default() {
         executor::block_on(async {
             let mut inq = UciMessageQueue::default();
-            let mut ouq = UciMessageQueue::default();
+            let mut ouq = Arc::new(UciMessageQueue::default());
             ouq.0.push(UciMessage::PonderHit);
             ouq.0.push(UciMessage::UciNewGame);
-            let ooq = &ouq;
+            let ooq = Arc::clone(&ouq);
 
-//            thread::spawn( move || {
-//                ooq.0.push(UciMessage::IsReady);
-//            });
+            spawn(move || {
+                ooq.0.push(UciMessage::IsReady);
+            });
 
-            dispatch_default(&mut inq, &mut ouq).await;
+            //dispatch_default(&mut inq, &mut ouq).await;
 
 
         });
