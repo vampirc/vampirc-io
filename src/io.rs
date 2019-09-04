@@ -32,6 +32,7 @@ pub async fn run_outbound_loop(mut rx: UciStream) -> Result<(), Box<dyn Error>> 
     loop {
         let msg: UciMessage = rx.try_next()?.unwrap();
         let msg_str = msg.serialize();
+        println!("WRITING {}", msg_str.as_str());
         let b = msg_str.as_bytes();
         stdout.write_all(b).await?;
     }
@@ -67,13 +68,33 @@ mod tests {
         Ok(())
     }
 
+    async fn print_num() {
+        for i in 0..100 {
+            println!("III: {}", i);
+        }
+    }
+
+    async fn process_
+
     #[test]
-    fn test_run_both_loops() {
+    fn test_run_in_loop() {
         executor::block_on(async {
             let (rtx, mut rrx) = unbounded::<UciMessage>();
             let pi = process_incoming(rrx);
             let il = run_inbound_loop(rtx);
             join!(pi, il);
+        });
+    }
+
+    #[test]
+    fn test_run_out_loop() {
+        executor::block_on(async {
+            let (stx, mut srx) = unbounded::<UciMessage>();
+            stx.unbounded_send(UciMessage::Uci);
+            stx.unbounded_send(UciMessage::UciOk);
+            let il = run_outbound_loop(srx);
+            let pn = print_num();
+            join!(pn, il);
         });
     }
 }
