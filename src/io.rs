@@ -74,8 +74,6 @@ mod tests {
         }
     }
 
-    async fn process_
-
     #[test]
     fn test_run_in_loop() {
         executor::block_on(async {
