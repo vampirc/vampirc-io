@@ -1,17 +1,16 @@
 use std::error::Error;
 use std::io;
-use std::io::{BufRead, Read};
 use std::pin::Pin;
 
-use futures::{AsyncBufReadExt, AsyncWriteExt};
+use futures::{AsyncBufReadExt, AsyncWriteExt, join, Stream, StreamExt, TryStreamExt};
 use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
-use futures::io::{AllowStdIo, IntoSink};
+use futures::io::{AllowStdIo, BufReader, BufWriter, IntoSink};
 use futures::task::Context;
-use vampirc_uci::{ByteVecUciMessage, parse_with_unknown, UciMessage};
+use vampirc_uci::{ByteVecUciMessage, parse_with_unknown, Serializable, UciMessage};
 
-type UciChannel = (UnboundedSender<UciMessage>, UnboundedReceiver<UciMessage>);
-type UciSink = UnboundedSender<UciMessage>;
-type UciStream = UnboundedReceiver<UciMessage>;
+pub type UciChannel = (UnboundedSender<UciMessage>, UnboundedReceiver<UciMessage>);
+pub type UciSink = UnboundedSender<UciMessage>;
+pub type UciStream = UnboundedReceiver<UciMessage>;
 
 pub async fn run_inbound_loop(tx: UciSink) -> Result<(), Box<dyn Error>> {
     loop {
@@ -20,6 +19,7 @@ pub async fn run_inbound_loop(tx: UciSink) -> Result<(), Box<dyn Error>> {
 
         for i in 0..msg_list.len() {
             let msg = msg_list[i].clone();
+            println!("MSG: {}", msg);
             tx.unbounded_send(msg)?;
         }
     }
@@ -27,12 +27,24 @@ pub async fn run_inbound_loop(tx: UciSink) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+pub async fn run_outbound_loop(mut rx: UciStream) -> Result<(), Box<dyn Error>> {
+    let mut stdout = BufWriter::new(AllowStdIo::new(io::stdout()));
+    loop {
+        let msg: UciMessage = rx.try_next()?.unwrap();
+        let msg_str = msg.serialize();
+        let b = msg_str.as_bytes();
+        stdout.write_all(b).await?;
+    }
+
+    Ok(())
+}
+
 async fn read_stdin() -> Result<String, Box<dyn Error>> {
+    println!("READ STDIN");
     let din = io::stdin();
-    let lock = din.lock();
-    let mut stdin = AllowStdIo::new(lock);
+    let mut stdin = BufReader::new(AllowStdIo::new(din));
     let mut s: String = String::new();
-    let len = AsyncBufReadExt::read_line(&mut stdin, &mut s).await?;
+    let len = stdin.read_line(&mut s).await?;
     Ok(s[..len].to_owned())
 }
 
@@ -40,7 +52,28 @@ async fn read_stdin() -> Result<String, Box<dyn Error>> {
 
 #[cfg(test)]
 mod tests {
+    use futures::{TryStream, TryStreamExt};
     use futures::executor;
 
     use super::*;
+
+    async fn process_incoming(mut rrx: UciStream) -> Result<(), Box<dyn Error>> {
+        println!("PROCESS INCOMING START");
+        while let Some(msg) = rrx.next().await {
+            println!("RECEIVED MSG: {}", msg);
+        }
+        println!("PROCESS INCOMING DONE");
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_run_both_loops() {
+        executor::block_on(async {
+            let (rtx, mut rrx) = unbounded::<UciMessage>();
+            let pi = process_incoming(rrx);
+            let il = run_inbound_loop(rtx);
+            join!(pi, il);
+        });
+    }
 }
