@@ -20,7 +20,7 @@ maintenance = { status = "actively-developed" }
 #default = ["vampirc-uci"]
 
 [dependencies]
-crossbeam = "0.7"
+async-std = "0.99"
 vampirc-uci = { git = 'https://github.com/vampirc/vampirc-uci.git'}
 
 [dependencies.futures-preview]
