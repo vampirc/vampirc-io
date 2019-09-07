@@ -39,31 +39,38 @@ pub fn stdout_msg_sink() -> Box<UciSink> {
     Box::new(sink)
 }
 
-pub async fn run_loops(inbound_consumer: UnboundedSender<UciMessage>, mut outbound_source: UnboundedReceiver<UciMessage>) {
-    let mut stdin = stdin_msg_stream();
+pub async fn run_loops(
+    mut inbound_source: Box<UciStream>,
+    inbound_consumer: UnboundedSender<UciMessage>,
+    mut outbound_source: UnboundedReceiver<UciMessage>,
+    mut outbound_consumer: Box<UciSink>) {
     let inb = async {
-        while let Ok(msg_opt) = stdin.try_next().await {
+        while let Ok(msg_opt) = inbound_source.try_next().await {
             let msg = msg_opt.unwrap();
-            println!("READING: {}", msg);
             inbound_consumer.unbounded_send(msg);
         }
     };
 
-    let mut stdout = stdout_msg_sink();
     let outb = async {
         while let Some(msg) = StreamExt::next(&mut outbound_source).await {
             println!("WRITING: {}", msg);
-            stdout.send(msg).await;
+            outbound_consumer.send(msg).await;
         }
     };
 
     join!(inb, outb);
 }
 
+pub async fn run_std_loops(inbound_consumer: UnboundedSender<UciMessage>, mut outbound_source: UnboundedReceiver<UciMessage>) {
+    run_loops(stdin_msg_stream(), inbound_consumer, outbound_source, stdout_msg_sink()).await;
+}
+
 
 
 #[cfg(test)]
 mod tests {
+    use futures::task::SpawnExt;
+
     use super::*;
 
     #[test]
@@ -79,14 +86,20 @@ mod tests {
 
     #[test]
     fn test_run_loops() {
-        let (itx, irx) = unbounded::<UciMessage>();
+        let (itx, mut irx) = unbounded::<UciMessage>();
         let (otx, orx) = unbounded::<UciMessage>();
 
         otx.unbounded_send(UciMessage::Uci);
 
+        let rec = async {
+            while let (incoming) = StreamExt::next(&mut irx).await {
+                println!("Handling received message: {}", incoming.unwrap())
+            }
+        };
+
         block_on(async {
             otx.unbounded_send(UciMessage::UciOk);
-            run_loops(itx, orx).await;
+            join!(run_std_loops(itx, orx), rec);
         });
     }
 
