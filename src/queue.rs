@@ -1,8 +1,10 @@
 #![cfg(feature = "queue")]
 
 use std::any::Any;
+use std::time::Duration;
 
 use async_std::io as aio;
+use async_std::task;
 use crossbeam::queue::SegQueue;
 use futures::{join, SinkExt, TryStreamExt};
 use futures::channel::mpsc::{unbounded, UnboundedSender};
@@ -51,6 +53,8 @@ pub async fn run_std_with_queues(inbound: &CmdQueue, outbound: &UciQueue, mut er
     };
 
     let snd = async {
+        loop {
+
             while let Ok(msg) = outbound.pop() {
                 println!("POPPED {}", msg);
                 if let Err(send_err) = SinkExt::send(&mut otx, msg).await {
@@ -59,7 +63,14 @@ pub async fn run_std_with_queues(inbound: &CmdQueue, outbound: &UciQueue, mut er
                     return;
                 }
                 println!("SENT");
+
+                task::sleep(Duration::from_millis(25)).await;
             }
+
+            task::sleep(Duration::from_millis(50)).await;
+        }
+
+        println!("CXHANNEEL CLOSED");
     };
 
 
