@@ -1,16 +1,9 @@
-use std::convert::TryInto;
-use std::ops::DerefMut;
-use std::sync::Arc;
-
 use async_std::future::ready;
 use async_std::io;
-use async_std::io::{BufRead, ErrorKind};
-use async_std::sync::{Mutex, RwLock};
-use async_std::task::block_on;
-use futures::{AsyncRead, AsyncWriteExt, future, FutureExt, join, Sink, SinkExt, Stream, StreamExt, TryStreamExt};
+use async_std::io::BufRead;
+use futures::{AsyncRead, AsyncWriteExt, FutureExt, join, Sink, SinkExt, Stream, StreamExt, TryStreamExt};
 use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
-use futures::sink::{Buffer, With};
-use vampirc_uci::{ByteVecUciMessage, MessageList, parse_strict, parse_with_unknown, Serializable, UciMessage};
+use vampirc_uci::{ByteVecUciMessage, parse_with_unknown, UciMessage};
 
 pub type UciStream = dyn Stream<Item=Result<UciMessage, io::Error>> + Unpin + Send + Sync;
 pub type UciSink = dyn Sink<UciMessage, Error=io::Error> + Unpin + Send;
@@ -36,7 +29,7 @@ pub fn stdin_msg_stream() -> Box<UciStream> {
 }
 
 pub fn stdout_msg_sink() -> Box<UciSink> {
-    let sink = io::stdout().into_sink().with(|msg: UciMessage| {
+    let sink = io::stdout().into_sink().buffer(256).with(|msg: UciMessage| {
         ready(Ok(ByteVecUciMessage::from(msg))).boxed()
     });
     Box::new(sink)
@@ -73,7 +66,7 @@ pub async fn run_loops(
     join!(inb, outb);
 }
 
-pub async fn run_std_loops(inbound_consumer: UciTrySender, mut outbound_source: UciReceiver) {
+pub async fn run_std_loops(inbound_consumer: UciTrySender, outbound_source: UciReceiver) {
     run_loops(stdin_msg_stream(), inbound_consumer, outbound_source, stdout_msg_sink()).await;
 }
 
@@ -89,7 +82,7 @@ pub fn new_try_channel() -> (UciTrySender, UciTryReceiver) {
 
 #[cfg(test)]
 mod tests {
-    use futures::task::SpawnExt;
+    use async_std::task::block_on;
 
     use super::*;
 
@@ -112,13 +105,13 @@ mod tests {
         otx.unbounded_send(UciMessage::Uci);
 
         let rec = async {
-            while let (Ok(incoming)) = TryStreamExt::try_next(&mut irx).await {
+            while let Ok(incoming) = TryStreamExt::try_next(&mut irx).await {
                 println!("Handling received message: {}", incoming.unwrap())
             }
         };
 
         block_on(async {
-            otx.unbounded_send(UciMessage::UciOk);
+            otx.unbounded_send(UciMessage::UciOk).unwrap();
             join!(run_std_loops(itx, orx), rec);
         });
     }
