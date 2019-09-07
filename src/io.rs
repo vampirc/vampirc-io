@@ -42,12 +42,16 @@ pub async fn run_loops(
     mut outbound_consumer: Box<UciSink>) {
     let inb = async {
         loop {
+            println!("AW INB");
             let msg_result = inbound_source.try_next().await;
+            println!("AWAITED READ");
             if let Ok(msg_opt) = msg_result {
                 if msg_opt.is_none() {
                     break;
                 } else {
-                    inbound_consumer.unbounded_send(Ok(msg_opt.unwrap()));
+                    let msg = msg_opt.unwrap();
+                    println!("READING: {}", msg);
+                    inbound_consumer.unbounded_send(Ok(msg));
                 }
             } else {
                 inbound_consumer.unbounded_send(Err(msg_result.err().unwrap()));
@@ -57,6 +61,7 @@ pub async fn run_loops(
     };
 
     let outb = async {
+        println!("AW OUTB");
         while let Some(msg) = StreamExt::next(&mut outbound_source).await {
             println!("WRITING: {}", msg);
             outbound_consumer.send(msg).await;
