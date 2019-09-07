@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use std::ops::DerefMut;
 use std::sync::Arc;
 
@@ -13,8 +14,10 @@ use vampirc_uci::{ByteVecUciMessage, MessageList, parse_strict, parse_with_unkno
 
 pub type UciStream = dyn Stream<Item=Result<UciMessage, io::Error>> + Unpin + Send + Sync;
 pub type UciSink = dyn Sink<UciMessage, Error=io::Error> + Unpin + Send;
-pub type UnboundedSink = UnboundedSender<UciMessage>;
-pub type UciChannel = (UnboundedSender<UciMessage>, UnboundedReceiver<UciMessage>);
+pub type UciSender = UnboundedSender<UciMessage>;
+pub type UciReceiver = UnboundedReceiver<UciMessage>;
+pub type UciTrySender = UnboundedSender<io::Result<UciMessage>>;
+pub type UciTryReceiver = UnboundedReceiver<io::Result<UciMessage>>;
 
 
 
@@ -41,13 +44,22 @@ pub fn stdout_msg_sink() -> Box<UciSink> {
 
 pub async fn run_loops(
     mut inbound_source: Box<UciStream>,
-    inbound_consumer: UnboundedSender<UciMessage>,
-    mut outbound_source: UnboundedReceiver<UciMessage>,
+    inbound_consumer: UciTrySender,
+    mut outbound_source: UciReceiver,
     mut outbound_consumer: Box<UciSink>) {
     let inb = async {
-        while let Ok(msg_opt) = inbound_source.try_next().await {
-            let msg = msg_opt.unwrap();
-            inbound_consumer.unbounded_send(msg);
+        loop {
+            let msg_result = inbound_source.try_next().await;
+            if let Ok(msg_opt) = msg_result {
+                if msg_opt.is_none() {
+                    break;
+                } else {
+                    inbound_consumer.unbounded_send(Ok(msg_opt.unwrap()));
+                }
+            } else {
+                inbound_consumer.unbounded_send(Err(msg_result.err().unwrap()));
+            }
+
         }
     };
 
@@ -61,8 +73,16 @@ pub async fn run_loops(
     join!(inb, outb);
 }
 
-pub async fn run_std_loops(inbound_consumer: UnboundedSender<UciMessage>, mut outbound_source: UnboundedReceiver<UciMessage>) {
+pub async fn run_std_loops(inbound_consumer: UciTrySender, mut outbound_source: UciReceiver) {
     run_loops(stdin_msg_stream(), inbound_consumer, outbound_source, stdout_msg_sink()).await;
+}
+
+pub fn new_channel() -> (UciSender, UciReceiver) {
+    unbounded::<UciMessage>()
+}
+
+pub fn new_try_channel() -> (UciTrySender, UciTryReceiver) {
+    unbounded::<io::Result<UciMessage>>()
 }
 
 
@@ -86,13 +106,13 @@ mod tests {
 
     #[test]
     fn test_run_loops() {
-        let (itx, mut irx) = unbounded::<UciMessage>();
-        let (otx, orx) = unbounded::<UciMessage>();
+        let (itx, mut irx) = new_try_channel();
+        let (otx, orx) = new_channel();
 
         otx.unbounded_send(UciMessage::Uci);
 
         let rec = async {
-            while let (incoming) = StreamExt::next(&mut irx).await {
+            while let (Ok(incoming)) = TryStreamExt::try_next(&mut irx).await {
                 println!("Handling received message: {}", incoming.unwrap())
             }
         };
