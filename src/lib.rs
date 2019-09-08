@@ -4,6 +4,8 @@ extern crate crossbeam;
 extern crate futures;
 extern crate vampirc_uci;
 
+pub use async_std::io::Result;
+
 pub use crate::command::Command;
 pub use crate::command::CommandType;
 pub use crate::io::from_reader;
