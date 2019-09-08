@@ -23,7 +23,7 @@ pub use crate::io::UciTrySender;
 mod io;
 mod command;
 #[cfg(feature = "queue")]
-mod queue;
+pub mod queue;
 
 #[cfg(test)]
 mod tests {
