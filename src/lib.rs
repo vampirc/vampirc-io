@@ -7,6 +7,8 @@ extern crate vampirc_uci;
 pub use async_std::io::Result;
 
 pub use crate::command::as_cmd_stream;
+pub use crate::command::CmdReceiver;
+pub use crate::command::CmdSender;
 pub use crate::command::Command;
 pub use crate::command::CommandType;
 pub use crate::command::new_cmd_channel;
