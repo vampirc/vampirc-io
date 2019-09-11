@@ -23,7 +23,7 @@ impl Default for CommandType {
     }
 }
 
-pub trait Command: Display + Debug + Send + Sync {
+pub trait Command: Display + Debug + Send + Sync + Unpin {
     fn get_type(&self) -> CommandType;
 }
 
