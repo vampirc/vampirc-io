@@ -78,9 +78,7 @@ pub async fn run_std_with_inbound_queue(inbound: &CmdQueue, outbound_source: Uci
 
     let rec = async {
         loop {
-            println!("QRL");
             let incoming_res = TryStreamExt::try_next(&mut irx).await;
-            println!("QRL AWAITED");
             if let Ok(incoming_opt) = incoming_res {
                 if let Some(incoming) = incoming_opt {
                     inbound.push(Box::new(incoming));
