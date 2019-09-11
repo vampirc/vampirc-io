@@ -1,5 +1,6 @@
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
+use std::pin::Pin;
 
 use async_std::future::ready;
 use async_std::io;
@@ -48,7 +49,7 @@ pub fn new_cmd_channel() -> (CmdSender, CmdReceiver) {
     unbounded()
 }
 
-pub fn as_cmd_stream(msg_rcv: UciTryReceiver) -> impl Stream<Item=Box<dyn Command>> {
+pub fn as_cmd_stream(msg_rcv: UciTryReceiver) -> Pin<Box<impl Stream<Item=Box<dyn Command>>>> {
     let mut rs = msg_rcv.filter_map(|msg: io::Result<UciMessage>| {
         if let Ok(m) = msg {
             let b: Box<dyn Command> = Box::new(m);
@@ -58,5 +59,5 @@ pub fn as_cmd_stream(msg_rcv: UciTryReceiver) -> impl Stream<Item=Box<dyn Comman
         }
     });
 
-    rs
+    Box::pin(rs)
 }
