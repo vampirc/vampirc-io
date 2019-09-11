@@ -1,6 +1,7 @@
-use async_std::future::ready;
+use async_std::future::{Future, ready};
 use async_std::io;
 use async_std::io::BufRead;
+use async_std::task::block_on;
 use futures::{AsyncRead, AsyncWriteExt, FutureExt, join, Sink, SinkExt, Stream, StreamExt, TryStreamExt};
 use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use vampirc_uci::{ByteVecUciMessage, parse_with_unknown, UciMessage};
@@ -83,12 +84,17 @@ pub fn new_try_channel() -> (UciTrySender, UciTryReceiver) {
     unbounded::<io::Result<UciMessage>>()
 }
 
+pub fn run_future<F, T>(future: F) -> T
+    where
+        F: Future<Output=T> + Send,
+        T: Send {
+    block_on(future)
+}
+
 
 
 #[cfg(test)]
 mod tests {
-    use async_std::task::block_on;
-
     use super::*;
 
     #[test]
