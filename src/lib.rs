@@ -15,6 +15,7 @@ pub use crate::command::new_cmd_channel;
 pub use crate::io::from_reader;
 pub use crate::io::new_channel;
 pub use crate::io::new_try_channel;
+pub use crate::io::run_future;
 pub use crate::io::run_loops;
 pub use crate::io::run_std_loops;
 pub use crate::io::stdin_msg_stream;
