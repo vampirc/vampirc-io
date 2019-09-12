@@ -7,11 +7,13 @@ extern crate vampirc_uci;
 pub use async_std::io::Result;
 
 pub use crate::command::as_cmd_stream;
+pub use crate::command::CmdError;
 pub use crate::command::CmdReceiver;
 pub use crate::command::CmdSender;
 pub use crate::command::Command;
 pub use crate::command::CommandType;
 pub use crate::command::new_cmd_channel;
+pub use crate::command::PinnedCmdStream;
 pub use crate::io::from_reader;
 pub use crate::io::new_channel;
 pub use crate::io::new_try_channel;
@@ -29,8 +31,6 @@ pub use crate::io::UciTrySender;
 
 mod io;
 mod command;
-#[cfg(feature = "queue")]
-pub mod queue;
 
 #[cfg(test)]
 mod tests {

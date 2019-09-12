@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display};
+use std::fmt::{Debug, Display, Error, Formatter};
 use std::hash::Hash;
 use std::pin::Pin;
 
@@ -10,11 +10,14 @@ use vampirc_uci::{ByteVecUciMessage, UciMessage};
 
 use crate::io::UciTryReceiver;
 
+pub type PinnedCmdStream = Pin<Box<dyn Stream<Item=Box<dyn Command>>>>;
+
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum CommandType {
     UciMessage,
     InternalCommand,
-    Uncatalogued,
+    Error,
+    Uncatalogued
 }
 
 
@@ -27,6 +30,29 @@ impl Default for CommandType {
 pub trait Command: Display + Debug + Send + Sync + Unpin {
     fn get_type(&self) -> CommandType;
 }
+
+#[derive(Debug)]
+pub struct CmdError(pub io::Error);
+
+impl Command for CmdError {
+    #[inline]
+    fn get_type(&self) -> CommandType {
+        CommandType::Error
+    }
+}
+
+impl Display for CmdError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<io::Error> for CmdError {
+    fn from(err: io::Error) -> Self {
+        CmdError(err)
+    }
+}
+
 
 impl Command for UciMessage {
     #[inline]
@@ -49,13 +75,15 @@ pub fn new_cmd_channel() -> (CmdSender, CmdReceiver) {
     unbounded()
 }
 
-pub fn as_cmd_stream(msg_rcv: UciTryReceiver) -> Pin<Box<impl Stream<Item=Box<dyn Command>>>> {
+pub fn as_cmd_stream(msg_rcv: UciTryReceiver) -> PinnedCmdStream {
     let mut rs = msg_rcv.filter_map(|msg: io::Result<UciMessage>| {
         if let Ok(m) = msg {
             let b: Box<dyn Command> = Box::new(m);
             ready(Some(b))
         } else {
-            ready(None)
+            let err: io::Error = msg.err().unwrap();
+            let b: Box<dyn Command> = Box::new(CmdError::from(err));
+            ready(Some(b))
         }
     });
 
