@@ -13,7 +13,6 @@ pub use crate::command::CmdSender;
 pub use crate::command::Command;
 pub use crate::command::CommandType;
 pub use crate::command::new_cmd_channel;
-pub use crate::command::PinnedCmdStream;
 pub use crate::io::from_reader;
 pub use crate::io::new_channel;
 pub use crate::io::new_try_channel;

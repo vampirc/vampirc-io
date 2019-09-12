@@ -10,8 +10,6 @@ use vampirc_uci::{ByteVecUciMessage, UciMessage};
 
 use crate::io::UciTryReceiver;
 
-pub type PinnedCmdStream = Pin<Box<dyn Stream<Item=Box<dyn Command>>>>;
-
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
 pub enum CommandType {
     UciMessage,
@@ -75,7 +73,7 @@ pub fn new_cmd_channel() -> (CmdSender, CmdReceiver) {
     unbounded()
 }
 
-pub fn as_cmd_stream(msg_rcv: UciTryReceiver) -> PinnedCmdStream {
+pub fn as_cmd_stream(msg_rcv: UciTryReceiver) -> Pin<Box<impl Stream<Item=Box<dyn Command>>>> {
     let mut rs = msg_rcv.filter_map(|msg: io::Result<UciMessage>| {
         if let Ok(m) = msg {
             let b: Box<dyn Command> = Box::new(m);
