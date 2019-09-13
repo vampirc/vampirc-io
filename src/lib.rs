@@ -1,17 +1,18 @@
 extern crate async_std;
-#[cfg(feature = "queue")]
-extern crate crossbeam;
 extern crate futures;
 extern crate vampirc_uci;
 
 pub use async_std::io::Result;
 
+#[cfg(feature = "command")]
 pub use crate::command::as_cmd_stream;
-pub use crate::command::CmdError;
+#[cfg(feature = "command")]
 pub use crate::command::CmdReceiver;
+#[cfg(feature = "command")]
 pub use crate::command::CmdSender;
+#[cfg(feature = "command")]
 pub use crate::command::Command;
-pub use crate::command::CommandType;
+#[cfg(feature = "command")]
 pub use crate::command::new_cmd_channel;
 pub use crate::io::from_reader;
 pub use crate::io::new_channel;
@@ -29,6 +30,7 @@ pub use crate::io::UciTryReceiver;
 pub use crate::io::UciTrySender;
 
 mod io;
+#[cfg(feature = "command")]
 mod command;
 
 #[cfg(test)]

@@ -17,6 +17,7 @@ travis-ci = { repository = "vampirc/vampirc-io", branch = "master" }
 maintenance = { status = "actively-developed" }
 
 [features]
+command = []
 
 [dependencies]
 async-std = "0.99"

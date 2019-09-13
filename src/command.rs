@@ -1,3 +1,5 @@
+#![cfg(feature = "command")]
+
 use std::fmt::{Debug, Display, Error, Formatter};
 use std::hash::Hash;
 use std::pin::Pin;
@@ -10,78 +12,78 @@ use vampirc_uci::{ByteVecUciMessage, UciMessage};
 
 use crate::io::UciTryReceiver;
 
-#[derive(Debug, PartialEq, Eq, Hash, Copy, Clone)]
-pub enum CommandType {
-    UciMessage,
-    InternalCommand,
-    Error,
-    Uncatalogued
-}
+pub trait CmdObj: Display + Debug + Send + Sync + Unpin {
 
-
-impl Default for CommandType {
-    fn default() -> Self {
-        CommandType::Uncatalogued
-    }
-}
-
-pub trait Command: Display + Debug + Send + Sync + Unpin {
-    fn get_type(&self) -> CommandType;
 }
 
 #[derive(Debug)]
-pub struct CmdError(pub io::Error);
-
-impl Command for CmdError {
-    #[inline]
-    fn get_type(&self) -> CommandType {
-        CommandType::Error
-    }
+pub enum Command {
+    UciMessage(UciMessage),
+    Error(io::Error),
+    InternalCommand(Box<dyn CmdObj>),
+    Uncatalogued(Box<dyn CmdObj>),
 }
 
-impl Display for CmdError {
+unsafe impl Send for Command {}
+
+unsafe impl Sync for Command {}
+
+impl Unpin for Command {}
+
+impl Display for Command {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        write!(f, "{}", self.0)
+        match self {
+            Command::UciMessage(msg) => write!(f, "{}", msg),
+            Command::Error(err) => write!(f, "{}", err),
+            Command::InternalCommand(cmd) | Command::Uncatalogued(cmd) => write!(f, "{}", *cmd),
+        }
     }
 }
 
-impl From<io::Error> for CmdError {
+impl From<UciMessage> for Command {
+    fn from(m: UciMessage) -> Self {
+        Command::UciMessage(m)
+    }
+}
+
+impl From<ByteVecUciMessage> for Command {
+    fn from(m: ByteVecUciMessage) -> Self {
+        Command::from(m.message)
+    }
+}
+
+impl From<io::Error> for Command {
     fn from(err: io::Error) -> Self {
-        CmdError(err)
+        Command::Error(err)
     }
 }
 
 
-impl Command for UciMessage {
-    #[inline]
-    fn get_type(&self) -> CommandType {
-        CommandType::UciMessage
+impl Command {
+    pub fn new_internal_cmd(c: Box<dyn CmdObj>) -> Command {
+        Command::InternalCommand(c)
+    }
+
+    pub fn new_uncatalogued(c: Box<dyn CmdObj>) -> Command {
+        Command::Uncatalogued(c)
     }
 }
 
-impl Command for ByteVecUciMessage {
-    #[inline]
-    fn get_type(&self) -> CommandType {
-        CommandType::UciMessage
-    }
-}
 
-pub type CmdSender = UnboundedSender<Box<dyn Command>>;
-pub type CmdReceiver = UnboundedReceiver<Box<dyn Command>>;
+pub type CmdSender = UnboundedSender<Command>;
+pub type CmdReceiver = UnboundedReceiver<Command>;
 
 pub fn new_cmd_channel() -> (CmdSender, CmdReceiver) {
     unbounded()
 }
 
-pub fn as_cmd_stream(msg_rcv: UciTryReceiver) -> Pin<Box<impl Stream<Item=Box<dyn Command>>>> {
+pub fn as_cmd_stream(msg_rcv: UciTryReceiver) -> Pin<Box<impl Stream<Item=Command>>> {
     let mut rs = msg_rcv.filter_map(|msg: io::Result<UciMessage>| {
         if let Ok(m) = msg {
-            let b: Box<dyn Command> = Box::new(m);
-            ready(Some(b))
+            ready(Some(Command::from(m)))
         } else {
             let err: io::Error = msg.err().unwrap();
-            let b: Box<dyn Command> = Box::new(CmdError::from(err));
-            ready(Some(b))
+            ready(Some(Command::from(err)))
         }
     });
 
