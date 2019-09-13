@@ -7,6 +7,8 @@ pub use async_std::io::Result;
 #[cfg(feature = "command")]
 pub use crate::command::as_cmd_stream;
 #[cfg(feature = "command")]
+pub use crate::command::CmdObj;
+#[cfg(feature = "command")]
 pub use crate::command::CmdReceiver;
 #[cfg(feature = "command")]
 pub use crate::command::CmdSender;
