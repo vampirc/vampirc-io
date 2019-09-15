@@ -8,15 +8,15 @@ use std::sync::Arc;
 
 use async_std::future::ready;
 use async_std::io;
+use downcast_rs::Downcast;
 use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
 use futures::stream::{Stream, StreamExt};
 use vampirc_uci::{ByteVecUciMessage, UciMessage};
 
 use crate::io::UciTryReceiver;
 
-pub trait CmdObj: Display + Debug + Send + Sync + Unpin + 'static {
-
-}
+pub trait CmdObj: Display + Debug + Send + Sync + Unpin + Downcast + 'static {}
+impl_downcast!(CmdObj);
 
 #[derive(Debug)]
 pub enum Command {

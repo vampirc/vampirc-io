@@ -1,4 +1,7 @@
 extern crate async_std;
+#[cfg(feature = "command")]
+#[macro_use]
+extern crate downcast_rs;
 extern crate futures;
 extern crate vampirc_uci;
 
