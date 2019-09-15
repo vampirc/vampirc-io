@@ -61,11 +61,11 @@ impl From<io::Error> for Command {
 
 
 impl Command {
-    pub fn new_internal_cmd(c: Box<dyn CmdObj>) -> Command {
+    pub fn new_internal_cmd(c: Arc<dyn CmdObj>) -> Command {
         Command::InternalCommand(c)
     }
 
-    pub fn new_uncatalogued(c: Box<dyn CmdObj>) -> Command {
+    pub fn new_uncatalogued(c: Arc<dyn CmdObj>) -> Command {
         Command::Uncatalogued(c)
     }
 }
