@@ -8,8 +8,6 @@ extern crate vampirc_uci;
 pub use async_std::io::Result;
 
 #[cfg(feature = "command")]
-pub use crate::command::as_cmd_stream;
-#[cfg(feature = "command")]
 pub use crate::command::CmdObj;
 #[cfg(feature = "command")]
 pub use crate::command::CmdReceiver;
@@ -19,6 +17,8 @@ pub use crate::command::CmdSender;
 pub use crate::command::Command;
 #[cfg(feature = "command")]
 pub use crate::command::new_cmd_channel;
+#[cfg(feature = "command")]
+pub use crate::command::pipe_to_cmd_stream;
 pub use crate::io::from_reader;
 pub use crate::io::new_channel;
 pub use crate::io::new_try_channel;

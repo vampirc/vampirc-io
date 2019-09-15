@@ -1,7 +1,7 @@
 #![cfg(feature = "command")]
 
-use std::any::{Any, TypeId};
 use std::fmt::{Debug, Display, Error, Formatter};
+use std::fs::read;
 use std::hash::Hash;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -9,11 +9,13 @@ use std::sync::Arc;
 use async_std::future::ready;
 use async_std::io;
 use downcast_rs::Downcast;
+use futures::{Future, FutureExt, join, SinkExt, TryFutureExt};
 use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};
-use futures::stream::{Stream, StreamExt};
+use futures::stream::{Stream, StreamExt, TryStreamExt};
 use vampirc_uci::{ByteVecUciMessage, UciMessage};
 
 use crate::io::UciTryReceiver;
+use crate::UciSender;
 
 pub trait CmdObj: Display + Debug + Send + Sync + Unpin + Downcast + 'static {}
 impl_downcast!(CmdObj);
@@ -79,7 +81,7 @@ pub fn new_cmd_channel() -> (CmdSender, CmdReceiver) {
     unbounded()
 }
 
-pub fn as_cmd_stream(msg_rcv: UciTryReceiver) -> Pin<Box<impl Stream<Item=Command>>> {
+pub async fn pipe_to_cmd_stream(msg_rcv: UciTryReceiver, mut cmd_snd: Pin<&mut CmdSender>) {
     let mut rs = msg_rcv.filter_map(|msg: io::Result<UciMessage>| {
         if let Ok(m) = msg {
             ready(Some(Command::from(m)))
@@ -89,5 +91,14 @@ pub fn as_cmd_stream(msg_rcv: UciTryReceiver) -> Pin<Box<impl Stream<Item=Comman
         }
     });
 
-    Box::pin(rs)
+    let mut pin_rs = Box::pin(rs);
+
+    let aas = async {
+        while let Some(msg_cmd) = pin_rs.next().await {
+            cmd_snd.send(msg_cmd).await;
+        }
+    };
+
+    join!(aas);
+
 }
