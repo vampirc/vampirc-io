@@ -1,5 +1,6 @@
 #![cfg(feature = "command")]
 
+use std::any::{Any, TypeId};
 use std::fmt::{Debug, Display, Error, Formatter};
 use std::hash::Hash;
 use std::pin::Pin;
@@ -13,7 +14,7 @@ use vampirc_uci::{ByteVecUciMessage, UciMessage};
 
 use crate::io::UciTryReceiver;
 
-pub trait CmdObj: Display + Debug + Send + Sync + Unpin {
+pub trait CmdObj: Display + Debug + Send + Sync + Unpin + 'static {
 
 }
 
