@@ -3,6 +3,7 @@
 use std::fmt::{Debug, Display, Error, Formatter};
 use std::hash::Hash;
 use std::pin::Pin;
+use std::sync::Arc;
 
 use async_std::future::ready;
 use async_std::io;
@@ -20,8 +21,8 @@ pub trait CmdObj: Display + Debug + Send + Sync + Unpin {
 pub enum Command {
     UciMessage(UciMessage),
     Error(io::Error),
-    InternalCommand(Box<dyn CmdObj>),
-    Uncatalogued(Box<dyn CmdObj>),
+    InternalCommand(Arc<dyn CmdObj>),
+    Uncatalogued(Arc<dyn CmdObj>),
 }
 
 unsafe impl Send for Command {}
