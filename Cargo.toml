@@ -17,12 +17,9 @@ travis-ci = { repository = "vampirc/vampirc-io", branch = "master" }
 maintenance = { status = "actively-developed" }
 
 [features]
-command = ["downcast-rs"]
-default = ["command"]
 
 [dependencies]
 async-std = "0.99"
-downcast-rs = {version = "1.0", optional=true}
 vampirc-uci = { git = 'https://github.com/vampirc/vampirc-uci.git'}
 
 [dependencies.futures-preview]

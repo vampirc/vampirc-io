@@ -1,24 +1,9 @@
 extern crate async_std;
-#[cfg(feature = "command")]
-#[macro_use]
-extern crate downcast_rs;
 extern crate futures;
 extern crate vampirc_uci;
 
 pub use async_std::io::Result;
 
-#[cfg(feature = "command")]
-pub use crate::command::CmdObj;
-#[cfg(feature = "command")]
-pub use crate::command::CmdReceiver;
-#[cfg(feature = "command")]
-pub use crate::command::CmdSender;
-#[cfg(feature = "command")]
-pub use crate::command::Command;
-#[cfg(feature = "command")]
-pub use crate::command::new_cmd_channel;
-#[cfg(feature = "command")]
-pub use crate::command::pipe_to_cmd_stream;
 pub use crate::io::from_reader;
 pub use crate::io::new_channel;
 pub use crate::io::new_try_channel;
@@ -35,8 +20,6 @@ pub use crate::io::UciTryReceiver;
 pub use crate::io::UciTrySender;
 
 mod io;
-#[cfg(feature = "command")]
-mod command;
 
 #[cfg(test)]
 mod tests {
