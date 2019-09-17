@@ -2,6 +2,4 @@ language: rust
 rust:
   - nightly
 matrix:
-  allow_failures:
-    - rust: nightly, async-await
   fast_finish: true
