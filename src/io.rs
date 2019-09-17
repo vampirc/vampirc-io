@@ -38,7 +38,7 @@ pub fn stdout_msg_sink() -> Box<UciSink> {
 
 pub async fn run_loops(
     mut inbound_source: Box<UciStream>,
-    inbound_consumer: UciTrySender,
+    mut inbound_consumer: UciTrySender,
     mut outbound_source: UciReceiver,
     mut outbound_consumer: Box<UciSink>) {
     let inb = async {
@@ -49,10 +49,10 @@ pub async fn run_loops(
                     break;
                 } else {
                     let msg = msg_opt.unwrap();
-                    inbound_consumer.unbounded_send(Ok(msg));
+                    inbound_consumer.send(Ok(msg)).await;
                 }
             } else {
-                inbound_consumer.unbounded_send(Err(msg_result.err().unwrap()));
+                inbound_consumer.send(Err(msg_result.err().unwrap())).await;
             }
 
         }
