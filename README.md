@@ -6,7 +6,14 @@ vampirc-io handles communication of said messages between the chess client and t
 It does so using asynchronous facilities of the Rust language, most notably the [async-std](https://github.com/async-rs/async-std). The loop that reads
 data from stdin and parses them into a stream of [UciMessages](https://docs.rs/vampirc-uci/0.8/vampirc_uci/uci/enum.UciMessage.html), and the loop that writes messages to stdout run in an asynchronous, non-blocking way.
 
-As it requires
+**Warning**: this crate relies heavily on the latest async features of Rust and therefore requires the NIGHTLY rust compiler. Use `rustup` to switch your
+project to nightly builds of Rust:
+
+```shell script
+rustup install nightly
+cd my-project
+rustup override set nightly
+```
 
 The UCI protocol is a way for a chess engine to communicate with a chessboard GUI, such as [Scid vs. PC](http://scidvspc.sourceforge.net/).
 
