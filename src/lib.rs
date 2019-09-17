@@ -3,6 +3,7 @@ extern crate futures;
 extern crate vampirc_uci;
 
 pub use async_std::io::Result;
+pub use futures::join;
 
 pub use crate::io::from_reader;
 pub use crate::io::new_channel;
