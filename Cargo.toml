@@ -8,7 +8,7 @@ repository = "https://github.com/vampirc/vampirc-io.git"
 categories = ["asynchronous", "game-engines", "command-line-interface"]
 license = "Apache-2.0"
 readme = "README.md"
-keywords = ["uci", "chess", "parser", "io", "stdin", "stdout"]
+keywords = ["uci", "chess", "io", "stdin", "stdout"]
 authors = ["Matija Kejžar <matija@kejzar.si>"]
 edition = "2018"
 
