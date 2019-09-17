@@ -97,6 +97,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[ignore]
     fn test_run_in_loop() {
         block_on(async {
             let mut msg_stream = stdin_msg_stream();
@@ -108,6 +109,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn test_run_loops() {
         let (itx, mut irx) = new_try_channel();
         let (otx, orx) = new_channel();
