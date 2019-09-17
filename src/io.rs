@@ -1,3 +1,5 @@
+use std::thread;
+
 use async_std::future::{Future, ready};
 use async_std::io;
 use async_std::io::BufRead;
@@ -49,18 +51,20 @@ pub async fn run_loops(
                     break;
                 } else {
                     let msg = msg_opt.unwrap();
-                    inbound_consumer.send(Ok(msg)).await;
+                    inbound_consumer.send(Ok(msg)).await.unwrap();
                 }
             } else {
-                inbound_consumer.send(Err(msg_result.err().unwrap())).await;
+                inbound_consumer.send(Err(msg_result.err().unwrap())).await.unwrap();
             }
-
         }
     };
 
     let outb = async {
         while let Some(msg) = StreamExt::next(&mut outbound_source).await {
-            outbound_consumer.send(msg).await;
+            let sr = outbound_consumer.send(msg).await;
+            if let Err(err) = sr {
+                eprintln!("[{:?}] Error while sending message through the outbound channel: {}", thread::current().id(), err);
+            }
         }
     };
 
@@ -108,7 +112,7 @@ mod tests {
         let (itx, mut irx) = new_try_channel();
         let (otx, orx) = new_channel();
 
-        otx.unbounded_send(UciMessage::Uci);
+        otx.unbounded_send(UciMessage::Uci).unwrap();
 
         let rec = async {
             while let Ok(incoming) = TryStreamExt::try_next(&mut irx).await {
