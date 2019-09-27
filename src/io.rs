@@ -2,7 +2,7 @@ use std::thread;
 
 use async_std::future::{Future, ready};
 use async_std::io;
-use async_std::io::BufRead;
+use async_std::prelude::*;
 use async_std::task::block_on;
 use futures::{AsyncRead, AsyncWriteExt, FutureExt, join, Sink, SinkExt, Stream, StreamExt, TryStreamExt};
 use futures::channel::mpsc::{unbounded, UnboundedReceiver, UnboundedSender};

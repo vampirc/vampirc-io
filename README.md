@@ -84,3 +84,9 @@ vio::run_future(async {
 The backing infrastructure is more generic and allows for passing of messages using other Streams and Sinks (for example, a TCP socket), not just stdin and stdout. However, due to
 all this async stuff being new and at the moment super unstable in Rust, this crate is not currently ready or stable enough to expose the underlying API.
 Feel free to [browse the source](https://github.com/vampirc/vampirc-io), though.
+
+## Changelog 
+
+### 0.2.1
+
+* Support for async-std 0.99.7.
