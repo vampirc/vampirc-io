@@ -4,7 +4,7 @@ vampirc-io is a companion crate to [vampirc-uci](https://github.com/vampirc/vamp
 vampirc-io handles communication of said messages between the chess client and the chess engine – usually over standard input and standard output.
 
 It does so using asynchronous facilities of the Rust language, most notably the [async-std](https://github.com/async-rs/async-std). The loop that reads
-data from stdin and parses them into a stream of [UciMessages](https://docs.rs/vampirc-uci/0.8/vampirc_uci/uci/enum.UciMessage.html), and the loop that writes messages to stdout run in an asynchronous, non-blocking way.
+data from stdin and parses them into a stream of [UciMessages](https://docs.rs/vampirc-uci/0.9/vampirc_uci/uci/enum.UciMessage.html), and the loop that writes messages to stdout run in an asynchronous, non-blocking way.
 
 **Info**: Since 0.3.0, this crate no longer requires the nightly Rust build, but it does require 1.39+, for async support. 
 
