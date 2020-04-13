@@ -21,6 +21,7 @@ pub use crate::io::UciTryReceiver;
 pub use crate::io::UciTrySender;
 
 mod io;
+mod io2;
 
 #[cfg(test)]
 mod tests {
