@@ -1,6 +1,14 @@
+use std::pin::Pin;
+
 use async_std::io::{Stdin, stdin, Stdout, stdout};
 use async_std::prelude::*;
+use futures::{Future, Stream, StreamExt};
+use futures::task::{Context, Poll};
 use vampirc_uci::{parse_with_unknown, Serializable, UciMessage};
+
+pub trait UciConsumer: Sync + Send {
+    fn consume(&self, message: &UciMessage);
+}
 
 #[derive(Debug)]
 pub struct GuiToEngineSync {
@@ -35,6 +43,26 @@ impl GuiToEngineSync {
     pub async fn send_message(&self, message: &UciMessage) {
         let mut handle = self.std_out.lock().await;
         handle.write_all(message.serialize().as_bytes()).await.unwrap();
+    }
+
+    pub async fn run_accept_loop(&mut self, consumer: &impl UciConsumer) {
+        while let msg = self.next().await.unwrap() {
+            consumer.consume(&msg)
+        }
+    }
+}
+
+impl Stream for GuiToEngineSync {
+    type Item = UciMessage;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let nm = self.next_message();
+        let pin_mut_poll = Box::pin(nm).as_mut().poll(cx);
+
+        match pin_mut_poll {
+            Poll::Pending => Poll::Pending,
+            Poll::Ready(message) => Poll::Ready(Some(message))
+        }
     }
 }
 
