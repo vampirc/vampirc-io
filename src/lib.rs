@@ -4,9 +4,14 @@ extern crate vampirc_uci;
 
 pub use async_std::io::Result;
 pub use async_std::prelude::*;
+pub use async_std::prelude::Future;
+pub use async_std::prelude::Stream;
+pub use async_std::prelude::StreamExt;
 pub use futures::join;
 
 pub use crate::io2::GuiToEngineSync;
+pub use crate::io2::UciConsumer;
+pub use crate::io2::UciStream;
 pub use crate::io::from_reader;
 pub use crate::io::new_channel;
 pub use crate::io::new_try_channel;
@@ -18,7 +23,6 @@ pub use crate::io::stdout_msg_sink;
 pub use crate::io::UciReceiver;
 pub use crate::io::UciSender;
 pub use crate::io::UciSink;
-pub use crate::io::UciStream;
 pub use crate::io::UciTryReceiver;
 pub use crate::io::UciTrySender;
 
