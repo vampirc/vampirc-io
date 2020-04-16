@@ -46,7 +46,7 @@ impl GuiToEngineSync {
         handle.write_all(message.serialize().as_bytes()).await.unwrap();
     }
 
-    pub async fn run_accept_loop(&self, consumer: &UciConsumer) {
+    pub async fn run_accept_loop<F>(&self, consumer: F) where F: Fn(&UciMessage) -> () + Send + Sync + 'static {
         while let msg = self.next_message().await {
             (consumer)(&msg);
         }
@@ -58,12 +58,12 @@ impl GuiToEngineSync {
         }
     }
 
-    pub async fn run(&mut self, consumer: &UciConsumer, producer: &mut UciStream) {
-        let send_loop = self.run_send_loop(producer);
-        let accept_loop = self.run_accept_loop(consumer);
-
-        join!(accept_loop, send_loop);
-    }
+    // pub async fn run(&mut self, consumer: &UciConsumer, producer: &mut UciStream) {
+    //     let send_loop = self.run_send_loop(producer);
+    //     let accept_loop = self.run_accept_loop(consumer);
+    //
+    //     join!(accept_loop, send_loop);
+    // }
 }
 
 impl Stream for GuiToEngineSync {
