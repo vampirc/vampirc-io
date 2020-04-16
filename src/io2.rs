@@ -2,13 +2,13 @@ use std::pin::Pin;
 
 use async_std::io::{Stdin, stdin, Stdout, stdout};
 use async_std::prelude::*;
-use futures::{Future, Stream, StreamExt};
+use futures::{Future, join, Stream, StreamExt};
+use futures::future::BoxFuture;
 use futures::task::{Context, Poll};
 use vampirc_uci::{parse_with_unknown, Serializable, UciMessage};
 
-pub trait UciConsumer: Sync + Send {
-    fn consume(&self, message: &UciMessage);
-}
+pub type UciStream = dyn Stream<Item=UciMessage> + Unpin + Sync + Send;
+pub type UciConsumer = dyn Fn(&UciMessage) -> BoxFuture<()> + Send + 'static;
 
 #[derive(Debug)]
 pub struct GuiToEngineSync {
@@ -45,10 +45,23 @@ impl GuiToEngineSync {
         handle.write_all(message.serialize().as_bytes()).await.unwrap();
     }
 
-    pub async fn run_accept_loop(&mut self, consumer: &impl UciConsumer) {
-        while let msg = self.next().await.unwrap() {
-            consumer.consume(&msg)
+    pub async fn run_accept_loop(&self, consumer: &UciConsumer) {
+        while let msg = self.next_message().await {
+            (consumer)(&msg).await;
         }
+    }
+
+    pub async fn run_send_loop(&self, producer: &mut UciStream) {
+        while let msg = producer.next().await.unwrap() {
+            self.send_message(&msg).await;
+        }
+    }
+
+    pub async fn run(&mut self, consumer: &UciConsumer, producer: &mut UciStream) {
+        let send_loop = self.run_send_loop(producer);
+        let accept_loop = self.run_accept_loop(consumer);
+
+        join!(accept_loop, send_loop);
     }
 }
 
