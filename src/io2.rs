@@ -8,7 +8,8 @@ use futures::task::{Context, Poll};
 use vampirc_uci::{parse_with_unknown, Serializable, UciMessage};
 
 pub type UciStream = dyn Stream<Item=UciMessage> + Unpin + Sync + Send;
-pub type UciConsumer = dyn Fn(&UciMessage) -> BoxFuture<()> + Send + 'static;
+// pub type UciConsumer = dyn Fn(&UciMessage) -> BoxFuture<()> + Send + 'static;
+pub type UciConsumer = dyn Fn(&UciMessage) -> ();
 
 #[derive(Debug)]
 pub struct GuiToEngineSync {
@@ -47,7 +48,7 @@ impl GuiToEngineSync {
 
     pub async fn run_accept_loop(&self, consumer: &UciConsumer) {
         while let msg = self.next_message().await {
-            (consumer)(&msg).await;
+            (consumer)(&msg);
         }
     }
 
