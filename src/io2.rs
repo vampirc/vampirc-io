@@ -19,15 +19,19 @@ impl StdinStream {
         }
     }
 
-    async fn next_line(&self) -> String {
+    async fn next_line(&self) -> async_std::io::Result<String> {
         let mut s = String::with_capacity(1024);
-        self.std_in.read_line(&mut s).await.unwrap();
-        s
+        self.std_in.read_line(&mut s).await?;
+        Ok(s)
     }
 
     pub async fn next_message(&self) -> UciMessage {
-        let line = self.next_line().await;
-        let msg_list = parse_with_unknown(line.as_str());
+        let mut line = self.next_line().await;
+        while line.is_err() {
+            line = self.next_line().await;
+        }
+
+        let msg_list = parse_with_unknown(line.unwrap().as_str());
         if msg_list.is_empty() || msg_list.len() > 1 {
             panic!("Expected to produce exactly one UciMessage");
         }
