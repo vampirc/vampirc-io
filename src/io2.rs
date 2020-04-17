@@ -20,7 +20,7 @@ impl StdinStream {
     }
 
     async fn next_line(&self) -> async_std::io::Result<String> {
-        let mut s = String::with_capacity(1024);
+        let mut s = String::new();
         self.std_in.read_line(&mut s).await?;
         Ok(s)
     }
