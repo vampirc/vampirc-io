@@ -1,6 +1,6 @@
 use std::pin::Pin;
 
-use async_std::io::{Stdin, stdin, Stdout, stdout};
+use async_std::io::{BufReader, Stdin, stdin, Stdout, stdout};
 use async_std::prelude::*;
 use futures::{Future, join, Stream, StreamExt};
 use futures::future::BoxFuture;
@@ -9,23 +9,23 @@ use vampirc_uci::{parse_with_unknown, Serializable, UciMessage};
 
 #[derive(Debug)]
 pub struct StdinStream {
-    std_in: Stdin
+    std_in: BufReader<Stdin>
 }
 
 impl StdinStream {
     pub fn new() -> StdinStream {
         StdinStream {
-            std_in: stdin()
+            std_in: BufReader::new(stdin())
         }
     }
 
-    async fn next_line(&self) -> async_std::io::Result<String> {
+    async fn next_line(&mut self) -> async_std::io::Result<String> {
         let mut s = String::new();
         self.std_in.read_line(&mut s).await?;
         Ok(s)
     }
 
-    pub async fn next_message(&self) -> UciMessage {
+    pub async fn next_message(&mut self) -> UciMessage {
         let mut line = self.next_line().await;
         while line.is_err() {
             line = self.next_line().await;
@@ -43,7 +43,7 @@ impl StdinStream {
 impl Stream for StdinStream {
     type Item = UciMessage;
 
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         let nm = self.next_message();
         let pin_mut_poll = Box::pin(nm).as_mut().poll(cx);
 
