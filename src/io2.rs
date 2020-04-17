@@ -7,21 +7,15 @@ use futures::future::BoxFuture;
 use futures::task::{Context, Poll};
 use vampirc_uci::{parse_with_unknown, Serializable, UciMessage};
 
-pub type UciStream = dyn Stream<Item=UciMessage> + Unpin + Sync + Send;
-// pub type UciConsumer = dyn Fn(&UciMessage) -> BoxFuture<()> + Send + 'static;
-pub type UciConsumer = dyn Fn(&UciMessage) -> ();
-
 #[derive(Debug)]
-pub struct GuiToEngineSync {
-    std_in: Stdin,
-    std_out: Stdout,
+pub struct StdinStream {
+    std_in: Stdin
 }
 
-impl GuiToEngineSync {
-    pub fn new() -> GuiToEngineSync {
-        GuiToEngineSync {
-            std_in: stdin(),
-            std_out: stdout(),
+impl StdinStream {
+    pub fn new() -> StdinStream {
+        StdinStream {
+            std_in: stdin()
         }
     }
 
@@ -40,33 +34,9 @@ impl GuiToEngineSync {
 
         msg_list[0].clone()
     }
-
-    pub async fn send_message(&self, message: &UciMessage) {
-        let mut handle = self.std_out.lock().await;
-        handle.write_all(message.serialize().as_bytes()).await.unwrap();
-    }
-
-    pub async fn run_accept_loop<F>(&self, consumer: F) where F: Fn(&UciMessage) -> () + Send + Sync + 'static {
-        while let msg = self.next_message().await {
-            (consumer)(&msg);
-        }
-    }
-
-    pub async fn run_send_loop(&self, producer: &mut UciStream) {
-        while let msg = producer.next().await.unwrap() {
-            self.send_message(&msg).await;
-        }
-    }
-
-    // pub async fn run(&mut self, consumer: &UciConsumer, producer: &mut UciStream) {
-    //     let send_loop = self.run_send_loop(producer);
-    //     let accept_loop = self.run_accept_loop(consumer);
-    //
-    //     join!(accept_loop, send_loop);
-    // }
 }
 
-impl Stream for GuiToEngineSync {
+impl Stream for StdinStream {
     type Item = UciMessage;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
@@ -77,6 +47,24 @@ impl Stream for GuiToEngineSync {
             Poll::Pending => Poll::Pending,
             Poll::Ready(message) => Poll::Ready(Some(message))
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct StdoutSink {
+    std_out: Stdout
+}
+
+impl StdoutSink {
+    pub fn new() -> StdoutSink {
+        StdoutSink {
+            std_out: stdout()
+        }
+    }
+
+    pub async fn send_message(&self, message: &UciMessage) {
+        let mut handle = self.std_out.lock().await;
+        handle.write_all(message.serialize().as_bytes()).await.unwrap();
     }
 }
 

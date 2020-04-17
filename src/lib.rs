@@ -9,9 +9,8 @@ pub use async_std::prelude::Stream;
 pub use async_std::prelude::StreamExt;
 pub use futures::join;
 
-pub use crate::io2::GuiToEngineSync;
-pub use crate::io2::UciConsumer;
-pub use crate::io2::UciStream;
+pub use crate::io2::StdinStream;
+pub use crate::io2::StdoutSink;
 pub use crate::io::from_reader;
 pub use crate::io::new_channel;
 pub use crate::io::new_try_channel;
