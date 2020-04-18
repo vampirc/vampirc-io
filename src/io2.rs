@@ -67,7 +67,8 @@ impl StdoutSink {
     }
 
     pub async fn send_message(&mut self, message: &UciMessage) {
-        self.std_out.write_fmt(format_args!("{}\r\n", message.serialize())).await.unwrap();
+        let s = message.serialize() + "\r\n";
+        self.std_out.write_all(s.as_bytes()).await.unwrap();
     }
 }
 
