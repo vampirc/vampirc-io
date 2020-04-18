@@ -70,6 +70,7 @@ impl StdoutSink {
         let s = message.serialize() + "\r\n";
         let b = s.as_bytes();
         self.std_out.write_all(b).await.unwrap();
+        self.std_out.flush().await.unwrap();
     }
 }
 
