@@ -1,6 +1,6 @@
 use std::pin::Pin;
 
-use async_std::io::{BufReader, Stdin, stdin, Stdout, stdout};
+use async_std::io::{BufReader, BufWriter, Stdin, stdin, Stdout, stdout};
 use async_std::prelude::*;
 use futures::{Future, join, Stream, StreamExt};
 use futures::future::BoxFuture;
@@ -56,19 +56,18 @@ impl Stream for StdinStream {
 
 #[derive(Debug)]
 pub struct StdoutSink {
-    std_out: Stdout
+    std_out: BufWriter<Stdout>
 }
 
 impl StdoutSink {
     pub fn new() -> StdoutSink {
         StdoutSink {
-            std_out: stdout()
+            std_out: BufWriter::new(stdout())
         }
     }
 
-    pub async fn send_message(&self, message: &UciMessage) {
-        let mut handle = self.std_out.lock().await;
-        handle.write_all(message.serialize().as_bytes()).await.unwrap();
+    pub async fn send_message(&mut self, message: &UciMessage) {
+        self.std_out.write_fmt(format_args!("{}\r\n", message.serialize())).await.unwrap();
     }
 }
 
