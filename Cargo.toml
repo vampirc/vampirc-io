@@ -20,7 +20,7 @@ maintenance = { status = "actively-developed" }
 
 [dependencies]
 async-std = {version ="1.5", features = ["unstable"]}
-vampirc-uci = "0.9"
+vampirc-uci = { git = 'https://github.com/vampirc/vampirc-uci.git', branch="master"}
 futures = "0.3"
 
 
